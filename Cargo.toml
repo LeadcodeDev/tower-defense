@@ -1,0 +1,15 @@
+[package]
+name = "tower"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "main"
+path = "src/bin/main.rs"
+
+[lib]
+name = "rust_tower"
+path = "src/lib/lib.rs"
+
+[dependencies]
+rand = "0.9.1"
