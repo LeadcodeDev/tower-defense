@@ -1,19 +1,31 @@
 use std::{
     collections::VecDeque,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use rand::{Rng, rng};
 
+use crate::application::engine::towers::{BasicTower, FireBasicTower};
+
 use super::{
     map::Map,
     monster::Monster,
+    position::Position,
     tower::{Tower, TowerType},
     wave::Wave,
 };
 
+/// Structure représentant un log d'événement du jeu
+#[derive(Debug, Clone)]
+pub struct GameLog {
+    /// Message du log
+    pub message: String,
+    /// Timestamp du log
+    pub timestamp: SystemTime,
+}
+
 pub struct Game {
-    pub maps: Vec<Map>,
+    pub map: Map,
     pub current_map: usize,
     pub towers: Vec<TowerType>,
     pub waves: VecDeque<Wave>,
@@ -24,11 +36,17 @@ pub struct Game {
     pub base_prototypes: Vec<Monster>,
     pub elapsed_time: f32,
     pub spawn_interval: f32, // Intervalle entre les monstres (0 = spawn simultané)
+    /// Logs des événements du jeu
+    pub logs: Vec<GameLog>,
+    /// Nombre maximum de logs à conserver
+    pub log_limit: usize,
+    /// Monnaie du joueur
+    pub money: u32,
 }
 
 impl Game {
     pub fn new(
-        maps: Vec<Map>,
+        map: Map,
         waves: Vec<Wave>,
         towers: Vec<TowerType>,
         player_life: i32,
@@ -40,7 +58,7 @@ impl Game {
             .unwrap_or_default();
 
         Self {
-            maps,
+            map,
             current_map: 0,
             towers,
             waves: VecDeque::from(waves),
@@ -51,6 +69,73 @@ impl Game {
             base_prototypes: bp,
             elapsed_time: 0.0,
             spawn_interval: 1.0, // Par défaut, 1 seconde d'intervalle
+            logs: Vec::new(),
+            log_limit: 100, // Par défaut, garder les 100 derniers logs
+            money: 100,     // Monnaie initiale
+        }
+    }
+
+    /// Ajoute un nouveau log au jeu
+    pub fn add_log(&mut self, message: String) {
+        let log = GameLog {
+            message,
+            timestamp: SystemTime::now(),
+        };
+
+        self.logs.push(log);
+
+        // Limiter le nombre de logs
+        if self.logs.len() > self.log_limit {
+            self.logs.remove(0);
+        }
+    }
+
+    pub fn add_tower(&mut self, position: Position) {
+        self.towers
+            .push(TowerType::Basic(BasicTower::positioned(position)));
+    }
+
+    pub fn add_fire_tower(&mut self, position: Position) {
+        self.towers
+            .push(TowerType::Fire(FireBasicTower::positioned(position)));
+    }
+
+    pub fn remove_tower(&mut self, position: Position) {
+        if let Some(index) = self
+            .towers
+            .iter()
+            .position(|t| t.position().x == position.x && t.position().y == position.y)
+        {
+            self.towers.remove(index);
+        }
+    }
+
+    /// Ajoute de la monnaie au joueur
+    pub fn add_money(&mut self, amount: u32) {
+        self.money += amount;
+        self.add_log(format!(
+            "💰 Gain de {} pièces! Total: {}",
+            amount, self.money
+        ));
+    }
+
+    /// Vérifie si le joueur a assez de monnaie
+    pub fn has_enough_money(&self, amount: u32) -> bool {
+        self.money >= amount
+    }
+
+    /// Dépense de la monnaie (retourne true si la transaction a réussi)
+    pub fn spend_money(&mut self, amount: u32) -> bool {
+        if self.has_enough_money(amount) {
+            self.money -= amount;
+            self.add_log(format!(
+                "💸 Dépense de {} pièces. Reste: {}",
+                amount, self.money
+            ));
+            true
+        } else {
+            self.add_log(format!("❌ Pas assez de pièces! ({})", self.money));
+            false
         }
     }
 
@@ -61,30 +146,22 @@ impl Game {
 
     fn gen_random_wave(&self) -> Wave {
         let mut rng = rng();
-        let base = self.base_prototypes.len().max(1) as u32;
-        let count = rng.random_range(1..=base + self.wave_index);
+        let count = rng.random_range(1..=10 + self.wave_index);
         let mut monsters = Vec::new();
 
-        for i in 0..count as usize {
-            let p = &self.base_prototypes[i % self.base_prototypes.len()];
-            monsters.push(Monster {
-                name: p.name.clone(),
-                hp: p.hp * (1.0 + self.wave_index as f32 * self.wave_multiplier),
-                position: self.maps[self.current_map].waypoints[0],
-                movement_speed: p.movement_speed,
-                waypoint_idx: 1,
-                resistances: p.resistances.clone(),
-                damage_to_player: p.damage_to_player,
-                distance_moved: 0.0,
-                spawn_delay: 0.0, // Sera configuré ci-dessous
-                active: false,    // Sera configuré ci-dessous
-            });
+        for _ in 0..count as usize {
+            let mut monster =
+                self.map.monsters[rng.random_range(0..self.map.monsters.len())].clone();
+            monster.hp = monster.hp * (1.0 + self.wave_index as f32 * self.wave_multiplier);
+            monster.waypoint_idx = 1;
+
+            monsters.push(monster);
         }
 
         // Option de configuration: choisir si on veut un spawn séquentiel ou simultané
         if self.spawn_interval <= 0.0 {
             // Spawn simultané
-            return Wave::new(monsters);
+            return Wave::new(Some(monsters));
         } else {
             // Spawn séquentiel avec intervalle
             return Wave::with_staggered_spawn(monsters, self.spawn_interval);
@@ -98,16 +175,19 @@ impl Game {
                 .waves
                 .pop_front()
                 .unwrap_or_else(|| self.gen_random_wave());
-            println!(
+
+            let log_message = format!(
                 "🚩 Démarrage vague {}: {} monstres sur carte '{}'",
                 self.wave_index,
                 w.monsters.len(),
-                self.maps[self.current_map].name
+                self.map.name
             );
+            self.add_log(log_message);
+
             self.current_wave = Some(w);
         }
     }
-    fn update(&mut self, delta_time: f32) {
+    pub fn update(&mut self, delta_time: f32) {
         // Gérer le démarrage d'une nouvelle vague si nécessaire
         if self.current_wave.is_none() {
             self.start_next_wave();
@@ -115,7 +195,7 @@ impl Game {
         }
 
         // À ce stade, on est sûr d'avoir une vague
-        let map = &self.maps[self.current_map];
+        let mut logs_to_add = Vec::new(); // Collecter les logs pour les ajouter à la fin
 
         if let Some(wave) = &mut self.current_wave {
             // Mettre à jour les délais de spawn et obtenir les monstres nouvellement activés
@@ -123,19 +203,23 @@ impl Game {
 
             // Afficher un message pour les monstres qui viennent d'apparaître
             for monster in newly_spawned {
-                println!("👾 Apparition d'un monstre! HP: {:.1}", monster.hp);
+                let log_message = format!(
+                    "👾 Apparition d'un monstre {}! HP: {:.1}",
+                    monster.name, monster.hp
+                );
+                logs_to_add.push(log_message);
             }
 
             // Déplacement des monstres avec delta_time pour vitesse en cases/seconde
             for m in wave.monsters.iter_mut() {
                 if m.is_alive() {
-                    m.advance(map, delta_time);
+                    m.advance(&self.map, delta_time);
                 }
             }
 
             // Tirs des tourelles avec simulation de sous-frames pour augmenter la précision
             // Diviser le delta_time en sous-frames pour avoir plus de tirs
-            let sub_frames = 10; // Augmenté à 10 sous-frames pour plus de précision
+            let sub_frames = 1; // Réduit de 10 à 1 pour diminuer la fréquence des tirs
             let sub_delta = delta_time / sub_frames as f32;
 
             let start_time = self.elapsed_time;
@@ -146,7 +230,9 @@ impl Game {
 
                 for tower in &mut self.towers {
                     if tower.can_shoot(sub_frame_time) {
-                        tower.shoot(wave, sub_frame_time);
+                        // Récupérer les logs des tirs de tourelles
+                        let tower_logs = tower.shoot(wave, sub_frame_time);
+                        logs_to_add.extend(tower_logs);
                     }
                 }
             }
@@ -156,37 +242,66 @@ impl Game {
 
             // Gestion des monstres arrivés/morts
             let mut rem = Vec::new();
+            let mut wave_is_empty = false;
+
             for m in wave.monsters.drain(..) {
                 if m.is_alive() {
-                    if m.reached_goal(map) {
+                    if m.reached_goal(&self.map) {
                         self.player_life -= m.damage_to_player as i32;
-                        println!(
-                            "⚠️ Monstre arrivé, -{} vie(s). Vie joueur: {}",
-                            m.damage_to_player, self.player_life
+                        let log_message = format!(
+                            "⚠️ Monstre {} arrivé, -{} vie(s). Vie joueur: {}",
+                            m.name, m.damage_to_player, self.player_life
                         );
+                        logs_to_add.push(log_message);
                     } else {
                         rem.push(m);
                     }
                 } else if m.hp <= 0.0 && m.active {
                     // Monstre tué (et pas juste inactif à cause du délai)
-                    println!("💀 Monstre {} éliminé!", m.name);
+                    let reward = 10 + (self.wave_index as u32); // Récompense base + bonus de vague
+                    let log_message = format!("💀 Monstre {} éliminé! +{} pièces", m.name, reward);
+                    logs_to_add.push(log_message);
+
+                    // On stocke les récompenses à ajouter plus tard pour éviter le double emprunt mutable
+                    logs_to_add.push(format!(
+                        "💰 Gain de {} pièces! Total: {}",
+                        reward,
+                        self.money + reward
+                    ));
+                    self.money += reward;
                 } else {
                     // Monstre inactif ou en attente de spawn
                     rem.push(m);
                 }
             }
             wave.monsters = rem;
+            wave_is_empty = wave.monsters.is_empty();
 
-            // Vérifier si la vague est terminée (aucun monstre vivant ou en attente)
-            let has_pending = wave.monsters.iter().any(|m| !m.active);
-            let has_alive = wave.monsters.iter().any(|m| m.is_alive());
+            // Ajouter tous les logs collectés
+            for log in logs_to_add {
+                self.add_log(log);
+            }
 
-            if !has_pending && !has_alive {
-                println!(
-                    "✅ Vague {} terminée sur carte '{}'",
-                    self.wave_index, map.name
+            // Si la vague est terminée, la supprimer et donner une récompense
+            if wave_is_empty {
+                let wave_bonus = 20 * self.wave_index as u32; // Bonus de fin de vague
+                self.money += wave_bonus;
+                let log_message = format!(
+                    "🏆 Vague {} terminée! Bonus de +{} pièces",
+                    self.wave_index, wave_bonus
                 );
+                self.add_log(log_message);
                 self.current_wave = None;
+
+                // Si le joueur a encore des PV, lancer automatiquement la prochaine vague
+                if self.player_life > 0 {
+                    let log_message = format!("✅ Préparation de la prochaine vague...",);
+                    self.add_log(log_message);
+                    self.start_next_wave();
+                } else {
+                    let log_message = "☠️ Game Over! Vous avez perdu!".to_string();
+                    self.add_log(log_message);
+                }
             }
         }
     }
@@ -218,14 +333,98 @@ impl Game {
                 std::thread::sleep(tick - elapsed);
             }
         }
+    }
 
-        println!(
-            "{}",
-            if self.player_life <= 0 {
-                "💀 Game Over"
-            } else {
-                "🎉 Victoire !"
-            }
-        );
+    /// Améliore la vitesse d'attaque d'une tour
+    pub fn upgrade_tower_attack_speed(&mut self, tower_index: usize) -> bool {
+        if tower_index >= self.towers.len() {
+            self.add_log("❌ Index de tour invalide!".to_string());
+            return false;
+        }
+
+        let tower = &self.towers[tower_index];
+        let upgrade_cost = tower.upgrade_cost();
+
+        if !self.has_enough_money(upgrade_cost) {
+            self.add_log(format!(
+                "❌ Pas assez de pièces pour améliorer! ({})",
+                self.money
+            ));
+            return false;
+        }
+
+        // Essayer d'améliorer la vitesse d'attaque
+        if self.towers[tower_index].upgrade_attack_speed() {
+            self.spend_money(upgrade_cost);
+            let tower_type = self.towers[tower_index].tower_type_name();
+            self.add_log(format!(
+                "🔧 Tour {} améliorée: Vitesse d'attaque +",
+                tower_type
+            ));
+            return true;
+        } else {
+            self.add_log("❌ Impossible d'améliorer davantage la vitesse d'attaque!".to_string());
+            return false;
+        }
+    }
+
+    /// Améliore les dégâts d'une tour
+    pub fn upgrade_tower_damage(&mut self, tower_index: usize) -> bool {
+        if tower_index >= self.towers.len() {
+            self.add_log("❌ Index de tour invalide!".to_string());
+            return false;
+        }
+
+        let tower = &self.towers[tower_index];
+        let upgrade_cost = tower.upgrade_cost();
+
+        if !self.has_enough_money(upgrade_cost) {
+            self.add_log(format!(
+                "❌ Pas assez de pièces pour améliorer! ({})",
+                self.money
+            ));
+            return false;
+        }
+
+        // Essayer d'améliorer les dégâts
+        if self.towers[tower_index].upgrade_damage() {
+            self.spend_money(upgrade_cost);
+            let tower_type = self.towers[tower_index].tower_type_name();
+            self.add_log(format!("🔧 Tour {} améliorée: Dégâts +", tower_type));
+            return true;
+        } else {
+            self.add_log("❌ Impossible d'améliorer davantage les dégâts!".to_string());
+            return false;
+        }
+    }
+
+    /// Améliore la portée d'une tour
+    pub fn upgrade_tower_range(&mut self, tower_index: usize) -> bool {
+        if tower_index >= self.towers.len() {
+            self.add_log("❌ Index de tour invalide!".to_string());
+            return false;
+        }
+
+        let tower = &self.towers[tower_index];
+        let upgrade_cost = tower.upgrade_cost();
+
+        if !self.has_enough_money(upgrade_cost) {
+            self.add_log(format!(
+                "❌ Pas assez de pièces pour améliorer! ({})",
+                self.money
+            ));
+            return false;
+        }
+
+        // Essayer d'améliorer la portée
+        if self.towers[tower_index].upgrade_range() {
+            self.spend_money(upgrade_cost);
+            let tower_type = self.towers[tower_index].tower_type_name();
+            self.add_log(format!("🔧 Tour {} améliorée: Portée +", tower_type));
+            return true;
+        } else {
+            self.add_log("❌ Impossible d'améliorer davantage la portée!".to_string());
+            return false;
+        }
     }
 }

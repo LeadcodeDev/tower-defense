@@ -37,7 +37,7 @@ impl TowerBehavior {
 
 fn apply_frost(monster: &mut Monster, damage: f32, slow_factor: f32) -> f32 {
     let original_speed = monster.movement_speed;
-    monster.movement_speed *= (1.0 - slow_factor);
+    monster.movement_speed *= 1.0 - slow_factor;
     println!(
         "❄️ EFFET: Monstre ralenti de {:.1} à {:.1} (facteur {:.0}%)",
         original_speed,
@@ -56,18 +56,17 @@ fn apply_burning(monster: &mut Monster, damage: f32, dot_damage: f32) -> f32 {
     damage
 }
 
-fn apply_lightning(monster: &mut Monster, damage: f32, stun_chance: f32) -> f32 {
-    if rand::random::<f32>() < stun_chance {
-        println!("⚡ EFFET: Monstre étourdi brièvement!");
-        // Dans un système plus avancé, on ajouterait un statut "stunned"
-    }
+fn apply_lightning(_monster: &mut Monster, damage: f32, _stun_chance: f32) -> f32 {
+    // TODO: Implement stun logic
     damage
 }
 
-fn apply_crusher(monster: &mut Monster, damage: f32, armor_reduction: f32) -> f32 {
-    println!(
-        "🔨 EFFET: Résistances réduites de {:.0}%",
-        armor_reduction * 100.0
-    );
-    damage * (1.0 + armor_reduction)
+fn apply_crusher(_monster: &mut Monster, damage: f32, _armor_reduction: f32) -> f32 {
+    // TODO: Implement armor reduction
+    damage
+}
+
+pub fn apply_slow(monster: &mut Monster, damage: f32, slow_factor: f32) -> f32 {
+    monster.movement_speed *= 1.0 - slow_factor;
+    damage
 }

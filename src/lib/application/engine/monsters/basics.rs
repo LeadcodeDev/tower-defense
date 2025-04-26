@@ -1,22 +1,22 @@
 use crate::domain::entities::monster::{Monster, Resistances};
 use crate::domain::entities::position::Position;
 
-pub fn goblin() -> Monster {
+pub fn goblin(position: Position) -> Monster {
     Monster::new(
         "Gobelin".to_string(),
         50.0,
-        Position::initial(),
+        position,
         1.0,
         Resistances::default(),
         1,
     )
 }
 
-pub fn orc() -> Monster {
+pub fn orc(position: Position) -> Monster {
     Monster::new(
         "Orc".to_string(),
         100.0,
-        Position::initial(),
+        position,
         0.8,
         Resistances::default(),
         2,

@@ -6,14 +6,20 @@ pub struct Wave {
 }
 
 impl Wave {
-    pub fn new(monsters: Vec<Monster>) -> Self {
-        // S'assurer que tous les monstres sont actifs immédiatement
-        let mut active_monsters = Vec::new();
-        for mut monster in monsters {
-            monster.spawn_delay = 0.0;
-            monster.active = true;
-            active_monsters.push(monster);
-        }
+    pub fn new(monsters: Option<Vec<Monster>>) -> Self {
+        let active_monsters = if let Some(monsters) = monsters {
+            let mut active_monsters = Vec::new();
+            for mut monster in monsters {
+                monster.spawn_delay = 0.0;
+                monster.active = true;
+                active_monsters.push(monster);
+            }
+
+            active_monsters
+        } else {
+            vec![]
+        };
+
         Self {
             monsters: active_monsters,
         }
