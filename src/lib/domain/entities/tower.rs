@@ -170,8 +170,12 @@ impl TowerType {
             TowerType::Air(_) => 50,
         };
 
-        // Le coût augmente avec le niveau
-        base_cost + (self.upgrade_level() * 15)
+        // Algorithme de croissance exponentielle avec base linéaire
+        let level = self.upgrade_level();
+        let exponential_factor = 1.5_f32.powi(level as i32);
+        let linear_component = 20 * level;
+
+        (base_cost as f32 * exponential_factor + linear_component as f32).round() as u32
     }
 
     /// Retourne le type de la tour sous forme de chaîne

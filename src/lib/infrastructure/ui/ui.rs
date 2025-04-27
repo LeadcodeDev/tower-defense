@@ -126,7 +126,7 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
     }
 
     // Dessiner les tourelles
-    for tower in &game.towers {
+    for (i, tower) in game.towers.iter().enumerate() {
         let pos = tower.position();
         if pos.x < area.width as i32 && pos.y < area.height as i32 {
             let tower_char = match tower {
@@ -138,9 +138,21 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
             };
 
             map_chars[pos.y as usize][pos.x as usize] = tower_char;
-            map_styles[pos.y as usize][pos.x as usize] = Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD);
+
+            // Mettre en évidence la tour sélectionnée quand on est en mode sélection sur la carte
+            let is_selected = app.tower_selection_on_map
+                && app.selected_tower_index.map_or(false, |index| index == i);
+
+            if is_selected {
+                map_styles[pos.y as usize][pos.x as usize] = Style::default()
+                    .fg(Color::Green)
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD);
+            } else {
+                map_styles[pos.y as usize][pos.x as usize] = Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD);
+            }
         }
     }
 
@@ -161,12 +173,20 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
         }
     }
 
-    // Dessiner le curseur en mode placement
-    if app.ui_mode == UiMode::Placement {
+    // Dessiner le curseur en mode placement ou en mode sélection sur la carte
+    if app.ui_mode == UiMode::Placement
+        || (app.ui_mode == UiMode::TowerSelection && app.tower_selection_on_map)
+    {
         let cursor_x = app.cursor_position.x;
         let cursor_y = app.cursor_position.y;
         if cursor_x < area.width as i32 && cursor_y < area.height as i32 {
-            map_chars[cursor_y as usize][cursor_x as usize] = 'X';
+            // En mode placement normal, afficher X, en mode sélection sur carte afficher un symbole différent
+            let cursor_char = if app.ui_mode == UiMode::Placement {
+                'X'
+            } else {
+                '+'
+            };
+            map_chars[cursor_y as usize][cursor_x as usize] = cursor_char;
             map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD);
@@ -231,8 +251,13 @@ fn render_monsters_bar(app: &App, frame: &mut Frame, area: Rect) {
             instructions_text.push(Line::from("Enter: Confirmer action"));
         }
         UiMode::TowerSelection => {
-            instructions_text.push(Line::from("↑ ↓: Sélectionner type"));
-            instructions_text.push(Line::from("Enter: Choisir | Esc: Annuler"));
+            if app.tower_selection_on_map {
+                instructions_text.push(Line::from("↑ ↓ ← →: Naviguer entre les tours"));
+                instructions_text.push(Line::from("Enter: Sélectionner | Esc: Annuler"));
+            } else {
+                instructions_text.push(Line::from("↑ ↓: Sélectionner type"));
+                instructions_text.push(Line::from("Enter: Choisir | Esc: Annuler"));
+            }
         }
         UiMode::Placement => {
             // Déterminons si nous sommes en mode amélioration
@@ -241,8 +266,8 @@ fn render_monsters_bar(app: &App, frame: &mut Frame, area: Rect) {
                 && app.available_actions[app.selected_index] == GameAction::UpgradeTower;
 
             if is_upgrade_mode {
-                instructions_text.push(Line::from("↑ ↓ ← →: Déplacer curseur"));
-                instructions_text.push(Line::from("Enter: Sélectionner | Esc: Annuler"));
+                instructions_text.push(Line::from("↑ ↓ ← →: Déplacer le curseur sur la carte"));
+                instructions_text.push(Line::from("Enter: Sélectionner la tour | Esc: Annuler"));
             } else {
                 instructions_text.push(Line::from("↑ ↓ ← →: Déplacer curseur"));
                 instructions_text.push(Line::from("Enter: Confirmer | Esc: Annuler"));
@@ -373,17 +398,22 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
             } else {
                 // Déterminons si nous sommes en mode suppression ou amélioration
                 let is_upgrade_mode = app.selected_index < app.available_actions.len()
+                    && app.selected_tower.is_none()
                     && app.available_actions[app.selected_index] == GameAction::UpgradeTower;
 
                 if is_upgrade_mode {
                     // Mode sélection de tour pour amélioration
                     (
-                        "Mode sélection - Amélioration de tour".to_string(),
+                        "Mode amélioration de tour".to_string(),
                         vec![
                             Line::from(""),
-                            Line::from("Utilisez les flèches pour positionner le curseur"),
-                            Line::from("Placez le curseur sur une tour existante"),
-                            Line::from("Appuyez sur Enter pour sélectionner la tour"),
+                            Line::from(
+                                "Utilisez les flèches pour déplacer le curseur sur la carte",
+                            ),
+                            Line::from(
+                                "Positionnez-vous sur une tour existante (lettres B, F, W, E, A)",
+                            ),
+                            Line::from("Appuyez sur Enter pour sélectionner la tour à améliorer"),
                             Line::from("Appuyez sur Escape pour annuler"),
                         ],
                     )

@@ -111,6 +111,10 @@ pub struct App {
     pub selected_tower: Option<TowerType>,
     /// Menu d'amélioration des tours
     pub upgrade_menu: Option<UpgradeMenu>,
+    /// Mode de sélection des tours (liste ou carte)
+    pub tower_selection_on_map: bool,
+    /// Index de la tourelle sélectionnée sur la carte
+    pub selected_tower_index: Option<usize>,
 }
 
 /// Les différentes vues disponibles dans l'application
@@ -156,6 +160,8 @@ impl App {
             cursor_position: Position::new(5, 5),
             selected_tower: None,
             upgrade_menu: None,
+            tower_selection_on_map: false,
+            selected_tower_index: None,
         }
     }
 
@@ -291,6 +297,8 @@ impl App {
                 // Retourner au mode normal
                 self.ui_mode = UiMode::Normal;
                 self.selected_index = 0; // Réinitialiser la sélection
+                self.tower_selection_on_map = false;
+                self.selected_tower_index = None;
             }
             UiMode::Placement => {
                 // Si on est en mode placement, retourner à la sélection de tour
@@ -306,6 +314,9 @@ impl App {
                 // Retourner au mode normal depuis l'amélioration
                 self.ui_mode = UiMode::Normal;
                 self.selected_index = 0;
+                self.upgrade_menu = None;
+                self.tower_selection_on_map = false;
+                self.selected_tower_index = None;
             }
         }
     }
@@ -322,15 +333,19 @@ impl App {
                             GameAction::BuildTower => {
                                 self.ui_mode = UiMode::TowerSelection;
                                 self.selected_index = 0; // Réinitialiser l'index de sélection
+                                self.tower_selection_on_map = false;
                             }
                             GameAction::RemoveTower => {
                                 self.ui_mode = UiMode::Placement;
                                 self.selected_tower = None; // Pas de tour sélectionnée = mode suppression
+                                self.tower_selection_on_map = false;
                             }
                             GameAction::UpgradeTower => {
                                 if !self.game.towers.is_empty() {
-                                    self.ui_mode = UiMode::TowerUpgrade;
-                                    self.selected_index = 0; // Réinitialiser l'index de sélection
+                                    // Passer directement en mode placement pour sélectionner une tour sur la carte
+                                    self.ui_mode = UiMode::Placement;
+                                    self.selected_tower = None; // Pas de tour sélectionnée = mode amélioration
+                                    self.cursor_position = self.game.towers[0].position(); // Commencer sur la première tour
                                 } else {
                                     self.game.add_log("Aucune tour à améliorer.".to_string());
                                 }
@@ -338,16 +353,51 @@ impl App {
                         }
                     }
                     UiMode::TowerSelection => {
-                        // En mode sélection de tour, choisir un type de tour
-                        if self.selected_index < self.available_towers.len() {
-                            let tower_type = self.available_towers[self.selected_index];
-                            self.selected_tower = Some(tower_type);
-                            self.ui_mode = UiMode::Placement; // Passer en mode placement
+                        if self.tower_selection_on_map {
+                            // Si on est en mode sélection sur la carte et qu'on appuie sur Enter
+                            if let Some(tower_index) = self.selected_tower_index {
+                                // Ouvrir le menu d'amélioration pour cette tour
+                                self.upgrade_tower(tower_index);
+                                // Passer en mode amélioration
+                                self.ui_mode = UiMode::TowerUpgrade;
+                                self.tower_selection_on_map = false;
+                            }
+                        } else {
+                            // En mode sélection de tour normal, choisir un type de tour
+                            if self.selected_index < self.available_towers.len() {
+                                let tower_type = self.available_towers[self.selected_index];
+                                self.selected_tower = Some(tower_type);
+                                self.ui_mode = UiMode::Placement; // Passer en mode placement
+                            }
                         }
                     }
                     UiMode::Placement => {
-                        // En mode placement, placer ou supprimer la tour
-                        if let Some(tower_type) = self.selected_tower {
+                        // Vérifier si on est en mode amélioration
+                        let is_upgrade_mode = self.selected_index < self.available_actions.len()
+                            && self.selected_tower.is_none()
+                            && self.available_actions[self.selected_index]
+                                == GameAction::UpgradeTower;
+
+                        if is_upgrade_mode {
+                            // Chercher une tour à la position du curseur
+                            let mut found_tower = false;
+                            for (idx, tower) in self.game.towers.iter().enumerate() {
+                                if tower.position().x == self.cursor_position.x
+                                    && tower.position().y == self.cursor_position.y
+                                {
+                                    // Ouvrir le menu d'amélioration pour cette tour
+                                    self.upgrade_tower(idx);
+                                    found_tower = true;
+                                    break;
+                                }
+                            }
+
+                            if !found_tower {
+                                self.game.add_log(
+                                    "Aucune tour à cette position pour amélioration.".to_string(),
+                                );
+                            }
+                        } else if let Some(tower_type) = self.selected_tower {
                             // Placer la tour selon son type
                             match tower_type {
                                 TowerType::Basic => self.add_tower(self.cursor_position),
@@ -356,29 +406,32 @@ impl App {
                                 TowerType::Earth => self.add_earth_tower(self.cursor_position),
                                 TowerType::Air => self.add_air_tower(self.cursor_position),
                             }
-                        } else {
-                            // Si pas de tour sélectionnée, supprimer la tour à cette position
-                            self.remove_tower(self.cursor_position);
-                        }
 
-                        // Retourner au mode normal après le placement
-                        self.ui_mode = UiMode::Normal;
-                        self.selected_tower = None;
+                            // Retourner au mode normal après le placement
+                            self.ui_mode = UiMode::Normal;
+                            self.selected_tower = None;
+                        } else {
+                            // Si pas de tour sélectionnée et pas en mode amélioration, supprimer la tour à cette position
+                            self.remove_tower(self.cursor_position);
+
+                            // Retourner au mode normal après la suppression
+                            self.ui_mode = UiMode::Normal;
+                        }
                     }
                     UiMode::TowerUpgrade => {
-                        // Logique pour améliorer la tour sélectionnée
                         if let Some(upgrade_menu) = &self.upgrade_menu {
-                            if upgrade_menu.selected_upgrade < upgrade_menu.available_upgrades.len()
+                            // Vérifier si l'option Annuler est sélectionnée (dernière option)
+                            if upgrade_menu.selected_upgrade
+                                >= upgrade_menu.available_upgrades.len()
                             {
-                                // Appliquer l'amélioration sélectionnée
-                                self.apply_upgrade();
-                            } else {
-                                // Annuler l'amélioration
-                                self.cancel_upgrade();
+                                // Annuler et retourner au mode normal
+                                self.upgrade_menu = None;
+                                self.ui_mode = UiMode::Normal;
+                                return;
                             }
-                        } else {
-                            // Si aucun menu d'amélioration n'est disponible, revenir au mode normal
-                            self.ui_mode = UiMode::Normal;
+
+                            // Appliquer l'amélioration choisie
+                            self.apply_upgrade();
                         }
                     }
                 }
@@ -570,5 +623,199 @@ impl App {
     pub fn cancel_upgrade(&mut self) {
         self.upgrade_menu = None;
         self.ui_mode = UiMode::Normal;
+    }
+
+    /// Vérifie si on est en mode sélection de tour sur la carte
+    pub fn is_tower_selection_on_map(&self) -> bool {
+        self.tower_selection_on_map
+    }
+
+    /// Commence la sélection de tour sur la carte
+    pub fn start_tower_selection_on_map(&mut self) {
+        if self.game.towers.is_empty() {
+            self.game
+                .add_log("Aucune tour à sélectionner sur la carte.".to_string());
+            return;
+        }
+
+        self.ui_mode = UiMode::TowerSelection;
+        self.tower_selection_on_map = true;
+
+        // Sélectionner la première tour par défaut
+        self.selected_tower_index = Some(0);
+        if let Some(index) = self.selected_tower_index {
+            if index < self.game.towers.len() {
+                let tower = &self.game.towers[index];
+                self.cursor_position = tower.position();
+
+                // Afficher les infos de la tour sélectionnée
+                let tower_type = tower.tower_type_name();
+                let level = tower.upgrade_level();
+                self.game.add_log(format!(
+                    "🔍 Tour {} (Niveau {}) sélectionnée",
+                    tower_type, level
+                ));
+            }
+        }
+    }
+
+    /// Sélectionne la tour au-dessus de la position actuelle
+    pub fn select_tower_on_map_up(&mut self) {
+        if let Some(current_index) = self.selected_tower_index {
+            let current_pos = self.game.towers[current_index].position();
+
+            // Trouver la tour la plus proche vers le haut
+            let mut closest_tower_index = None;
+            let mut min_distance = f32::MAX;
+
+            for (i, tower) in self.game.towers.iter().enumerate() {
+                let pos = tower.position();
+                // Vérifier que la tour est au-dessus
+                if pos.y < current_pos.y {
+                    let dx = (pos.x - current_pos.x) as f32;
+                    let dy = (pos.y - current_pos.y) as f32;
+                    let distance = (dx * dx + dy * dy).sqrt();
+
+                    if distance < min_distance {
+                        min_distance = distance;
+                        closest_tower_index = Some(i);
+                    }
+                }
+            }
+
+            if let Some(index) = closest_tower_index {
+                self.selected_tower_index = Some(index);
+                self.cursor_position = self.game.towers[index].position();
+
+                // Afficher les infos de la tour sélectionnée
+                let tower = &self.game.towers[index];
+                let tower_type = tower.tower_type_name();
+                let level = tower.upgrade_level();
+                self.game.add_log(format!(
+                    "🔍 Tour {} (Niveau {}) sélectionnée",
+                    tower_type, level
+                ));
+            }
+        }
+    }
+
+    /// Sélectionne la tour en dessous de la position actuelle
+    pub fn select_tower_on_map_down(&mut self) {
+        if let Some(current_index) = self.selected_tower_index {
+            let current_pos = self.game.towers[current_index].position();
+
+            // Trouver la tour la plus proche vers le bas
+            let mut closest_tower_index = None;
+            let mut min_distance = f32::MAX;
+
+            for (i, tower) in self.game.towers.iter().enumerate() {
+                let pos = tower.position();
+                // Vérifier que la tour est en dessous
+                if pos.y > current_pos.y {
+                    let dx = (pos.x - current_pos.x) as f32;
+                    let dy = (pos.y - current_pos.y) as f32;
+                    let distance = (dx * dx + dy * dy).sqrt();
+
+                    if distance < min_distance {
+                        min_distance = distance;
+                        closest_tower_index = Some(i);
+                    }
+                }
+            }
+
+            if let Some(index) = closest_tower_index {
+                self.selected_tower_index = Some(index);
+                self.cursor_position = self.game.towers[index].position();
+
+                // Afficher les infos de la tour sélectionnée
+                let tower = &self.game.towers[index];
+                let tower_type = tower.tower_type_name();
+                let level = tower.upgrade_level();
+                self.game.add_log(format!(
+                    "🔍 Tour {} (Niveau {}) sélectionnée",
+                    tower_type, level
+                ));
+            }
+        }
+    }
+
+    /// Sélectionne la tour à gauche de la position actuelle
+    pub fn select_tower_on_map_left(&mut self) {
+        if let Some(current_index) = self.selected_tower_index {
+            let current_pos = self.game.towers[current_index].position();
+
+            // Trouver la tour la plus proche vers la gauche
+            let mut closest_tower_index = None;
+            let mut min_distance = f32::MAX;
+
+            for (i, tower) in self.game.towers.iter().enumerate() {
+                let pos = tower.position();
+                // Vérifier que la tour est à gauche
+                if pos.x < current_pos.x {
+                    let dx = (pos.x - current_pos.x) as f32;
+                    let dy = (pos.y - current_pos.y) as f32;
+                    let distance = (dx * dx + dy * dy).sqrt();
+
+                    if distance < min_distance {
+                        min_distance = distance;
+                        closest_tower_index = Some(i);
+                    }
+                }
+            }
+
+            if let Some(index) = closest_tower_index {
+                self.selected_tower_index = Some(index);
+                self.cursor_position = self.game.towers[index].position();
+
+                // Afficher les infos de la tour sélectionnée
+                let tower = &self.game.towers[index];
+                let tower_type = tower.tower_type_name();
+                let level = tower.upgrade_level();
+                self.game.add_log(format!(
+                    "🔍 Tour {} (Niveau {}) sélectionnée",
+                    tower_type, level
+                ));
+            }
+        }
+    }
+
+    /// Sélectionne la tour à droite de la position actuelle
+    pub fn select_tower_on_map_right(&mut self) {
+        if let Some(current_index) = self.selected_tower_index {
+            let current_pos = self.game.towers[current_index].position();
+
+            // Trouver la tour la plus proche vers la droite
+            let mut closest_tower_index = None;
+            let mut min_distance = f32::MAX;
+
+            for (i, tower) in self.game.towers.iter().enumerate() {
+                let pos = tower.position();
+                // Vérifier que la tour est à droite
+                if pos.x > current_pos.x {
+                    let dx = (pos.x - current_pos.x) as f32;
+                    let dy = (pos.y - current_pos.y) as f32;
+                    let distance = (dx * dx + dy * dy).sqrt();
+
+                    if distance < min_distance {
+                        min_distance = distance;
+                        closest_tower_index = Some(i);
+                    }
+                }
+            }
+
+            if let Some(index) = closest_tower_index {
+                self.selected_tower_index = Some(index);
+                self.cursor_position = self.game.towers[index].position();
+
+                // Afficher les infos de la tour sélectionnée
+                let tower = &self.game.towers[index];
+                let tower_type = tower.tower_type_name();
+                let level = tower.upgrade_level();
+                self.game.add_log(format!(
+                    "🔍 Tour {} (Niveau {}) sélectionnée",
+                    tower_type, level
+                ));
+            }
+        }
     }
 }
