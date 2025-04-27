@@ -4,7 +4,7 @@ use crate::domain::entities::{
     position::Position,
     tower::{
         BaseStats, TargetSelection, Tower, TowerKind, TowerStats, TowerUpgradeElement,
-        TowerUpgrades,
+        TowerUpgradeElementUnit, TowerUpgrades,
     },
 };
 
@@ -16,9 +16,9 @@ impl BasicTower {
             name: "Basic Tower".to_string(),
             upgrades: TowerUpgrades::new(
                 30,
-                TowerUpgradeElement::new(2.0, 0.5),
-                TowerUpgradeElement::new(10.0, 1.25),
-                TowerUpgradeElement::new(1.0, 1.2),
+                TowerUpgradeElement::new(2.0, 0.5, TowerUpgradeElementUnit::Unit),
+                TowerUpgradeElement::new(10.0, 1.25, TowerUpgradeElementUnit::Percent),
+                TowerUpgradeElement::new(1.0, 1.2, TowerUpgradeElementUnit::Percent),
             ),
             stats: TowerStats {
                 position,

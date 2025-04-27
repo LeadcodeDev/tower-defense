@@ -73,8 +73,8 @@ impl Game {
             elapsed_time: 0.0,
             spawn_interval: 1.0, // Par défaut, 1 seconde d'intervalle
             logs: Vec::new(),
-            log_limit: 100, // Par défaut, garder les 100 derniers logs
-            money: 100,     // Monnaie initiale
+            log_limit: 100,   // Par défaut, garder les 100 derniers logs
+            money: 100000000, // Monnaie initiale
         }
     }
 
@@ -359,6 +359,13 @@ impl Game {
         let upgrade_type = UpgradeType::AttackSpeed;
         let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
 
+        // Vérifier si l'amélioration est au maximum (coût = 0)
+        if upgrade_cost == 0 {
+            let message = "❌ Amélioration déjà au niveau maximum".to_string();
+            self.add_log(message.clone());
+            return Err(message);
+        }
+
         if !self.has_enough_money(upgrade_cost) {
             let message = format!("❌ Missing money ({})", self.money);
             self.add_log(message.clone());
@@ -386,8 +393,14 @@ impl Game {
         }
 
         let tower = &self.towers[tower_index];
-        let upgrade_type = UpgradeType::Damage;
-        let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
+        let upgrade_cost = tower.upgrade_cost_for_attribute(UpgradeType::Damage);
+
+        // Vérifier si l'amélioration est au maximum (coût = 0)
+        if upgrade_cost == 0 {
+            let message = "❌ Amélioration déjà au niveau maximum".to_string();
+            self.add_log(message.clone());
+            return Err(message);
+        }
 
         if !self.has_enough_money(upgrade_cost) {
             let message = format!("❌ Missing money ({})", self.money);
@@ -419,6 +432,13 @@ impl Game {
         let tower = &self.towers[tower_index];
         let upgrade_type = UpgradeType::Range;
         let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
+
+        // Vérifier si l'amélioration est au maximum (coût = 0)
+        if upgrade_cost == 0 {
+            let message = "❌ Amélioration déjà au niveau maximum".to_string();
+            self.add_log(message.clone());
+            return Err(message);
+        }
 
         if !self.has_enough_money(upgrade_cost) {
             let message = format!("❌ Missing money ({})", self.money);

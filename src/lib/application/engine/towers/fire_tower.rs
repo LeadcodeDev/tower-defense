@@ -4,7 +4,7 @@ use crate::domain::entities::{
     position::Position,
     tower::{
         BaseStats, TargetSelection, Tower, TowerKind, TowerStats, TowerUpgradeElement,
-        TowerUpgrades,
+        TowerUpgradeElementUnit, TowerUpgrades,
     },
 };
 
@@ -16,9 +16,9 @@ impl FireTower {
             name: "Fire Tower".to_string(),
             upgrades: TowerUpgrades::new(
                 45,
-                TowerUpgradeElement::new(3.0, 0.5),
-                TowerUpgradeElement::new(12.0, 1.25),
-                TowerUpgradeElement::new(1.0, 1.2),
+                TowerUpgradeElement::new(3.0, 0.5, TowerUpgradeElementUnit::Unit),
+                TowerUpgradeElement::new(12.0, 1.25, TowerUpgradeElementUnit::Unit),
+                TowerUpgradeElement::new(1.0, 0.2, TowerUpgradeElementUnit::Unit),
             ),
             stats: TowerStats {
                 position,
@@ -26,10 +26,10 @@ impl FireTower {
                 element: Element::Fire,
                 damage: 12.0,
                 attacks_per_second: 1.0,
-                aoe: false,
+                aoe: true,
                 behavior: TowerBehavior::Basic,
                 last_attack: 0.0,
-                target_selection: TargetSelection::All,
+                target_selection: TargetSelection::Nearest,
                 upgrade_level: 0,
                 tower_type: TowerKind::Fire,
                 base_stats: BaseStats {

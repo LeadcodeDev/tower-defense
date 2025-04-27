@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::{
-    domain::entities::tower::TowerKind,
+    domain::entities::tower::{TowerKind, TowerUpgradeElementUnit, UpgradeType},
     infrastructure::ui::app::{App, GameAction, TowerType, UiMode, View},
 };
 
@@ -474,8 +474,8 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
 
                     // Afficher d'abord les informations sur la tour
                     let tower_info = format!(
-                        "Tour {} ({},{}) - Niveau {} - 💰 {} pour améliorer",
-                        tower_type, position.x, position.y, level, cost
+                        "Tour {} (x:{}, y:{}) - Level {}",
+                        tower_type, position.x, position.y, level
                     );
 
                     action_items.push(ListItem::new(Span::styled(
@@ -487,24 +487,97 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
 
                     action_items.push(ListItem::new(""));
                     action_items.push(ListItem::new("Choisissez une amélioration:"));
+                    action_items.push(ListItem::new(""));
 
                     // Afficher les options d'amélioration
                     for (i, (upgrade_type, description)) in
                         upgrade_menu.available_upgrades.iter().enumerate()
                     {
                         let cost = tower.upgrade_cost_for_attribute(*upgrade_type);
-                        let text = format!("{} - 💰 {}", description, cost);
+                        let is_maxed = cost == 0;
+
+                        // Récupérer les valeurs actuelles
+                        let current_value = match upgrade_type {
+                            UpgradeType::AttackSpeed => tower.attacks_per_second(),
+                            UpgradeType::Damage => tower.damage(),
+                            UpgradeType::Range => tower.range(),
+                        };
+
+                        let bonus = if is_maxed {
+                            // Format pour les améliorations au maximum - sans MAX à la fin
+                            match upgrade_type {
+                                UpgradeType::AttackSpeed => {
+                                    format!("⚡️ {:.2}/s Attack speed (MAX)", current_value)
+                                }
+                                UpgradeType::Damage => {
+                                    format!("💥 {:.2} Damage (MAX)", current_value)
+                                }
+                                UpgradeType::Range => {
+                                    format!("🔍 {:.2} Range (MAX)", current_value)
+                                }
+                            }
+                        } else {
+                            // Format pour les améliorations normales
+                            let modifier = match upgrade_type {
+                                UpgradeType::AttackSpeed => {
+                                    match tower.upgrades.attacks_speed.value_multiplier_unit {
+                                        TowerUpgradeElementUnit::Percent => format!(
+                                            "x{:.2}%",
+                                            tower.upgrades.attacks_speed.value_multiplier
+                                        ),
+                                        TowerUpgradeElementUnit::Unit => format!(
+                                            "+{}",
+                                            tower.upgrades.attacks_speed.value_multiplier
+                                        ),
+                                    }
+                                }
+                                UpgradeType::Damage => {
+                                    match tower.upgrades.damage.value_multiplier_unit {
+                                        TowerUpgradeElementUnit::Percent => {
+                                            format!(
+                                                "x{:.2}%",
+                                                tower.upgrades.damage.value_multiplier
+                                            )
+                                        }
+                                        TowerUpgradeElementUnit::Unit => {
+                                            format!("+{}", tower.upgrades.damage.value_multiplier)
+                                        }
+                                    }
+                                }
+                                UpgradeType::Range => {
+                                    match tower.upgrades.range.value_multiplier_unit {
+                                        TowerUpgradeElementUnit::Percent => {
+                                            format!(
+                                                "x{:.2}%",
+                                                tower.upgrades.range.value_multiplier
+                                            )
+                                        }
+                                        TowerUpgradeElementUnit::Unit => {
+                                            format!("+{}", tower.upgrades.range.value_multiplier)
+                                        }
+                                    }
+                                }
+                            };
+
+                            // Format pour les améliorations normales avec le coût
+                            format!("{} ({}), 💰{:.2}", description, modifier, cost)
+                        };
 
                         // Mettre en surbrillance l'option sélectionnée
                         let style = if i == upgrade_menu.selected_upgrade {
                             Style::default()
                                 .fg(Color::Yellow)
                                 .add_modifier(Modifier::BOLD)
+                        } else if is_maxed {
+                            // Style spécial pour les améliorations au max
+                            Style::default()
+                                .fg(Color::Green)
+                                .add_modifier(Modifier::BOLD)
                         } else {
                             Style::default().fg(Color::White)
                         };
 
-                        action_items.push(ListItem::new(Span::styled(text, style)));
+                        action_items.push(ListItem::new(Span::styled(bonus, style)));
                     }
                 }
             } else {

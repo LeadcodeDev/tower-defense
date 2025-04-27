@@ -2,7 +2,10 @@ use crate::domain::entities::{
     behavior::TowerBehavior,
     element::Element,
     position::Position,
-    tower::{BaseStats, Tower, TowerKind, TowerStats, TowerUpgradeElement, TowerUpgrades},
+    tower::{
+        BaseStats, Tower, TowerKind, TowerStats, TowerUpgradeElement, TowerUpgradeElementUnit,
+        TowerUpgrades,
+    },
 };
 
 pub struct IceTower;
@@ -13,9 +16,9 @@ impl IceTower {
             name: "Ice Tower".to_string(),
             upgrades: TowerUpgrades::new(
                 50,
-                TowerUpgradeElement::new(3.8, 0.5),
-                TowerUpgradeElement::new(10.0, 1.25),
-                TowerUpgradeElement::new(0.7, 1.2),
+                TowerUpgradeElement::new(3.8, 0.5, TowerUpgradeElementUnit::Unit),
+                TowerUpgradeElement::new(10.0, 1.25, TowerUpgradeElementUnit::Percent),
+                TowerUpgradeElement::new(0.7, 1.2, TowerUpgradeElementUnit::Percent),
             ),
             stats: TowerStats {
                 position,

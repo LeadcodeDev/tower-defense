@@ -63,18 +63,30 @@ pub struct BaseStats {
     pub attacks_per_second: f32,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum TowerUpgradeElementUnit {
+    Percent,
+    Unit,
+}
+
 #[derive(Debug, Clone)]
 pub struct TowerUpgradeElement {
     pub price_multiplier: f32,
     pub value_multiplier: f32,
+    pub value_multiplier_unit: TowerUpgradeElementUnit,
     pub level: u32,
 }
 
 impl TowerUpgradeElement {
-    pub fn new(price_multiplier: f32, value_multiplier: f32) -> Self {
+    pub fn new(
+        price_multiplier: f32,
+        value_multiplier: f32,
+        value_multiplier_unit: TowerUpgradeElementUnit,
+    ) -> Self {
         Self {
             price_multiplier,
             value_multiplier,
+            value_multiplier_unit,
             level: 0,
         }
     }
@@ -175,52 +187,85 @@ impl Tower {
     }
 
     pub fn upgrade_attack_speed(&mut self) -> Result<String, String> {
-        if self.upgrades.attacks_speed.level >= 30 {
-            return Err("The attack speed is already at max level".to_string());
+        // Niveau maximum selon le type de tour
+        let max_level = if self.stats.tower_type == TowerKind::Earth {
+            10
+        } else {
+            30
+        };
+
+        if self.upgrades.attacks_speed.level >= max_level {
+            return Err(format!("La vitesse d'attaque est déjà au niveau maximum."));
         }
 
-        let current_attack_speed = self.attacks_per_second();
-        self.stats.attacks_per_second *= self.upgrades.attacks_speed.value_multiplier;
+        let current = self.attacks_per_second();
         self.upgrades.attacks_speed.level += 1;
+        self.stats.attacks_per_second = match self.upgrades.attacks_speed.value_multiplier_unit {
+            TowerUpgradeElementUnit::Percent => {
+                current * self.upgrades.attacks_speed.value_multiplier
+            }
+
+            TowerUpgradeElementUnit::Unit => current + self.upgrades.attacks_speed.value_multiplier,
+        };
 
         Ok(format!(
-            "🔧 Tower {} attack speed upgraded ({} -> {})",
+            "🔧 Tour {} vitesse d'attaque améliorée ({} -> {})",
             self.tower_type_name(),
-            current_attack_speed,
+            current,
             self.attacks_per_second()
         ))
     }
 
     pub fn upgrade_damage(&mut self) -> Result<String, String> {
-        if self.upgrades.damage.level >= 30 {
-            return Err("The damage is already at max level".to_string());
+        // Niveau maximum selon le type de tour
+        let max_level = if self.stats.tower_type == TowerKind::Earth {
+            10
+        } else {
+            30
+        };
+
+        if self.upgrades.damage.level >= max_level {
+            return Err(format!("Les dégâts sont déjà au niveau maximum."));
         }
 
-        let current_damage = self.damage();
-        self.stats.damage *= self.upgrades.damage.value_multiplier;
+        let current = self.damage();
         self.upgrades.damage.level += 1;
+        self.stats.damage = match self.upgrades.damage.value_multiplier_unit {
+            TowerUpgradeElementUnit::Percent => current * self.upgrades.damage.value_multiplier,
+            TowerUpgradeElementUnit::Unit => current + self.upgrades.damage.value_multiplier,
+        };
 
         Ok(format!(
-            "🔧 Tower {} damage upgraded ({} -> {})",
+            "🔧 Tour {} dégâts améliorés ({} -> {})",
             self.tower_type_name(),
-            current_damage,
+            current,
             self.damage()
         ))
     }
 
     pub fn upgrade_range(&mut self) -> Result<String, String> {
-        if self.upgrades.range.level >= 30 {
-            return Err("The range is already at max level".to_string());
+        // Niveau maximum selon le type de tour
+        let max_level = if self.stats.tower_type == TowerKind::Earth {
+            10
+        } else {
+            30
+        };
+
+        if self.upgrades.range.level >= max_level {
+            return Err(format!("La portée est déjà au niveau maximum."));
         }
 
-        let current_range = self.range();
-        self.stats.range += self.upgrades.range.value_multiplier;
+        let current = self.range();
         self.upgrades.range.level += 1;
+        self.stats.range = match self.upgrades.range.value_multiplier_unit {
+            TowerUpgradeElementUnit::Percent => current * self.upgrades.range.value_multiplier,
+            TowerUpgradeElementUnit::Unit => current + self.upgrades.range.value_multiplier,
+        };
 
         Ok(format!(
-            "🔧 Tower {} range upgraded ({} -> {})",
+            "🔧 Tour {} portée améliorée ({} -> {})",
             self.tower_type_name(),
-            current_range,
+            current,
             self.range()
         ))
     }
@@ -241,6 +286,19 @@ impl Tower {
             UpgradeType::AttackSpeed => self.upgrades.attacks_speed.level,
             UpgradeType::Range => self.upgrades.range.level,
         };
+
+        // Vérifier si on a atteint le niveau maximum
+        let max_level = if self.stats.tower_type == TowerKind::Earth {
+            // Niveau maximum spécifique pour la tour de terre
+            10
+        } else {
+            // Niveau maximum par défaut pour les autres tours
+            30
+        };
+
+        if level >= max_level {
+            return 0; // Coût de 0 indique que l'amélioration est au maximum
+        }
 
         let base = (self.upgrades.base_cost as f32 * 1.3_f32.powi(level as i32)).round() as u32;
 
@@ -389,6 +447,21 @@ impl Tower {
         let distance = (dx * dx + dy * dy).sqrt();
 
         distance <= self.range()
+    }
+
+    /// Retourne true si toutes les améliorations de la tour sont au niveau maximum
+    pub fn is_fully_upgraded(&self) -> bool {
+        // Déterminer le niveau maximum selon le type de tour
+        let max_level = if self.stats.tower_type == TowerKind::Earth {
+            10
+        } else {
+            30
+        };
+
+        // Vérifier si toutes les améliorations sont au niveau maximum
+        self.upgrades.attacks_speed.level >= max_level
+            && self.upgrades.damage.level >= max_level
+            && self.upgrades.range.level >= max_level
     }
 }
 

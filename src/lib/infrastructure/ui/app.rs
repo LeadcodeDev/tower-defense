@@ -83,7 +83,7 @@ pub enum UiMode {
 pub struct UpgradeMenu {
     pub tower_index: usize,
     pub selected_upgrade: usize,
-    pub available_upgrades: Vec<(crate::domain::entities::tower::UpgradeType, &'static str)>,
+    pub available_upgrades: Vec<(UpgradeType, String)>,
 }
 
 impl UpgradeMenu {
@@ -92,15 +92,9 @@ impl UpgradeMenu {
             tower_index,
             selected_upgrade: 0,
             available_upgrades: vec![
-                (
-                    crate::domain::entities::tower::UpgradeType::AttackSpeed,
-                    "Vitesse d'attaque",
-                ),
-                (
-                    crate::domain::entities::tower::UpgradeType::Damage,
-                    "Dégâts",
-                ),
-                (crate::domain::entities::tower::UpgradeType::Range, "Portée"),
+                (UpgradeType::AttackSpeed, "Vitesse d'attaque".to_string()),
+                (UpgradeType::Damage, "Dégâts".to_string()),
+                (UpgradeType::Range, "Portée".to_string()),
             ],
         }
     }
@@ -414,7 +408,6 @@ impl App {
                                 if tower.position().x == self.cursor_position.x
                                     && tower.position().y == self.cursor_position.y
                                 {
-                                    // Ouvrir le menu d'amélioration pour cette tour
                                     self.upgrade_tower(idx, None);
                                     found_tower = true;
                                     break;
@@ -498,18 +491,11 @@ impl App {
                     self.set_view(View::Game);
                 }
             }
-            View::Pause => {
-                match self.selected_index {
-                    0 => {
-                        // Reprendre la partie
-                        self.set_view(View::Game);
-                    }
-                    1 => {
-                        self.quit();
-                    }
-                    _ => {}
-                }
-            }
+            View::Pause => match self.selected_index {
+                0 => self.set_view(View::Game),
+                1 => self.quit(),
+                _ => {}
+            },
             View::GameOver => {
                 match self.selected_index {
                     0 => {
@@ -665,26 +651,20 @@ impl App {
             keep_selection.unwrap_or(0)
         };
 
-        self.upgrade_menu = Some(UpgradeMenu {
-            tower_index: index,
-            selected_upgrade,
-            available_upgrades: vec![
-                (UpgradeType::AttackSpeed, "Vitesse d'attaque"),
-                (UpgradeType::Damage, "Dégâts"),
-                (UpgradeType::Range, "Portée"),
-            ],
-        });
-
-        // Afficher les informations sur la tour
-        let tower = &self.game.towers[index];
-        let tower_type = tower.tower_type_name();
-        let tower_level = tower.upgrade_level();
+        // Extraire les informations nécessaires
+        let tower_type = self.game.towers[index].tower_type_name().to_string();
+        let tower_level = self.game.towers[index].upgrade_level();
+        let attacks_per_second = self.game.towers[index].attacks_per_second();
+        let damage = self.game.towers[index].damage();
+        let range = self.game.towers[index].range();
 
         // Récupérer les coûts pour chaque type d'amélioration
-        let cost_attack_speed = tower.upgrade_cost_for_attribute(UpgradeType::AttackSpeed);
-        let cost_damage = tower.upgrade_cost_for_attribute(UpgradeType::Damage);
-        let cost_range = tower.upgrade_cost_for_attribute(UpgradeType::Range);
+        let cost_attack_speed =
+            self.game.towers[index].upgrade_cost_for_attribute(UpgradeType::AttackSpeed);
+        let cost_damage = self.game.towers[index].upgrade_cost_for_attribute(UpgradeType::Damage);
+        let cost_range = self.game.towers[index].upgrade_cost_for_attribute(UpgradeType::Range);
 
+        // Afficher les informations sur la tour
         self.game
             .add_log(format!("🔍 Tour {} (Niveau {})", tower_type, tower_level));
         self.game.add_log(format!(
@@ -696,6 +676,19 @@ impl App {
         self.game
             .add_log(format!("💰 Portée: {} pièces", cost_range));
 
+        self.upgrade_menu = Some(UpgradeMenu {
+            tower_index: index,
+            selected_upgrade,
+            available_upgrades: vec![
+                (
+                    UpgradeType::AttackSpeed,
+                    format!("⚡️ {:.2}/s Attack speed", attacks_per_second),
+                ),
+                (UpgradeType::Damage, format!("💥 {:.2} Damage", damage)),
+                (UpgradeType::Range, format!("🔭 {:.2} Range", range)),
+            ],
+        });
+
         self.ui_mode = UiMode::TowerUpgrade;
     }
 
@@ -706,6 +699,17 @@ impl App {
 
             if current_selection < upgrade_menu.available_upgrades.len() {
                 let (upgrade_type, _) = upgrade_menu.available_upgrades[current_selection];
+
+                // Vérifier si cette amélioration spécifique est au maximum
+                let tower = &self.game.towers[tower_index];
+                let cost = tower.upgrade_cost_for_attribute(upgrade_type);
+
+                if cost == 0 {
+                    self.game
+                        .add_log(format!("❌ Cette amélioration est déjà au niveau maximum."));
+                    // Garder le menu ouvert pour permettre la sélection d'autres améliorations
+                    return;
+                }
 
                 let successful_upgrade = match upgrade_type {
                     UpgradeType::AttackSpeed => self.game.upgrade_tower_attack_speed(tower_index),
