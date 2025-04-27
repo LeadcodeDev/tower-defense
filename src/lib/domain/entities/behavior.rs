@@ -61,9 +61,17 @@ fn apply_lightning(_monster: &mut Monster, damage: f32, _stun_chance: f32) -> f3
     damage
 }
 
-fn apply_crusher(_monster: &mut Monster, damage: f32, _armor_reduction: f32) -> f32 {
-    // TODO: Implement armor reduction
-    damage
+fn apply_crusher(monster: &mut Monster, damage: f32, armor_reduction: f32) -> f32 {
+    let original_armor = monster.armor;
+    monster.armor = (monster.armor * (1.0 - armor_reduction)).max(0.0);
+    let actual_damage = damage * (1.0 / (1.0 - (original_armor - monster.armor)));
+    println!(
+        "🪨 EFFET: Réduction d'armure de {:.1} à {:.1} (facteur {:.0}%)",
+        original_armor,
+        monster.armor,
+        armor_reduction * 100.0
+    );
+    actual_damage
 }
 
 pub fn apply_slow(monster: &mut Monster, damage: f32, slow_factor: f32) -> f32 {

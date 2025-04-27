@@ -61,6 +61,7 @@ pub struct Monster {
     pub distance_moved: f32, // Distance accumulée pour les mouvements partiels
     pub spawn_delay: f32,    // Délai avant apparition (en secondes)
     pub active: bool,        // Indique si le monstre est actif dans la vague
+    pub armor: f32, // Réduction des dégâts (0.0 = aucune réduction, 0.5 = 50% de réduction)
 }
 
 impl Monster {
@@ -167,6 +168,7 @@ impl Monster {
             distance_moved: 0.0,
             spawn_delay: 0.0, // Par défaut, pas de délai
             active: true,     // Par défaut, actif immédiatement
+            armor: 0.0,       // Par défaut, pas d'armure
         }
     }
 

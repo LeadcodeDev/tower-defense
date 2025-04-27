@@ -386,7 +386,7 @@ impl App {
                             // Si on est en mode sélection sur la carte et qu'on appuie sur Enter
                             if let Some(tower_index) = self.selected_tower_index {
                                 // Ouvrir le menu d'amélioration pour cette tour
-                                self.upgrade_tower(tower_index);
+                                self.upgrade_tower(tower_index, None);
                                 // Passer en mode amélioration
                                 self.ui_mode = UiMode::TowerUpgrade;
                                 self.tower_selection_on_map = false;
@@ -415,7 +415,7 @@ impl App {
                                     && tower.position().y == self.cursor_position.y
                                 {
                                     // Ouvrir le menu d'amélioration pour cette tour
-                                    self.upgrade_tower(idx);
+                                    self.upgrade_tower(idx, None);
                                     found_tower = true;
                                     break;
                                 }
@@ -649,7 +649,7 @@ impl App {
         self.game.remove_tower(position);
     }
 
-    pub fn upgrade_tower(&mut self, index: usize) {
+    pub fn upgrade_tower(&mut self, index: usize, keep_selection: Option<usize>) {
         if index >= self.game.towers.len() {
             self.game
                 .add_log("❌ Tour non trouvée pour l'amélioration.".to_string());
@@ -657,7 +657,23 @@ impl App {
         }
 
         // Créer un menu d'amélioration pour cette tour
-        self.upgrade_menu = Some(UpgradeMenu::new(index));
+        let selected_upgrade = if let Some(current_menu) = &self.upgrade_menu {
+            // Si on a déjà un menu, conserver la sélection actuelle ou utiliser celle fournie
+            keep_selection.unwrap_or(current_menu.selected_upgrade)
+        } else {
+            // Si c'est un nouveau menu, utiliser la valeur fournie ou 0 par défaut
+            keep_selection.unwrap_or(0)
+        };
+
+        self.upgrade_menu = Some(UpgradeMenu {
+            tower_index: index,
+            selected_upgrade,
+            available_upgrades: vec![
+                (UpgradeType::AttackSpeed, "Vitesse d'attaque"),
+                (UpgradeType::Damage, "Dégâts"),
+                (UpgradeType::Range, "Portée"),
+            ],
+        });
 
         // Afficher les informations sur la tour
         let tower = &self.game.towers[index];
@@ -665,12 +681,9 @@ impl App {
         let tower_level = tower.upgrade_level();
 
         // Récupérer les coûts pour chaque type d'amélioration
-        let cost_attack_speed = tower
-            .upgrade_cost_for_attribute(crate::domain::entities::tower::UpgradeType::AttackSpeed);
-        let cost_damage =
-            tower.upgrade_cost_for_attribute(crate::domain::entities::tower::UpgradeType::Damage);
-        let cost_range =
-            tower.upgrade_cost_for_attribute(crate::domain::entities::tower::UpgradeType::Range);
+        let cost_attack_speed = tower.upgrade_cost_for_attribute(UpgradeType::AttackSpeed);
+        let cost_damage = tower.upgrade_cost_for_attribute(UpgradeType::Damage);
+        let cost_range = tower.upgrade_cost_for_attribute(UpgradeType::Range);
 
         self.game
             .add_log(format!("🔍 Tour {} (Niveau {})", tower_type, tower_level));
@@ -683,32 +696,26 @@ impl App {
         self.game
             .add_log(format!("💰 Portée: {} pièces", cost_range));
 
-        // Passer en mode amélioration spécifique
         self.ui_mode = UiMode::TowerUpgrade;
     }
 
     pub fn apply_upgrade(&mut self) {
         if let Some(upgrade_menu) = &self.upgrade_menu {
             let tower_index = upgrade_menu.tower_index;
+            let current_selection = upgrade_menu.selected_upgrade;
 
-            if upgrade_menu.selected_upgrade < upgrade_menu.available_upgrades.len() {
-                let (upgrade_type, _) =
-                    upgrade_menu.available_upgrades[upgrade_menu.selected_upgrade];
+            if current_selection < upgrade_menu.available_upgrades.len() {
+                let (upgrade_type, _) = upgrade_menu.available_upgrades[current_selection];
 
-                // Appliquer l'amélioration choisie
                 let successful_upgrade = match upgrade_type {
                     UpgradeType::AttackSpeed => self.game.upgrade_tower_attack_speed(tower_index),
                     UpgradeType::Damage => self.game.upgrade_tower_damage(tower_index),
                     UpgradeType::Range => self.game.upgrade_tower_range(tower_index),
                 };
 
-                // Si l'amélioration a réussi, mettre à jour le menu d'amélioration avec les nouvelles données
                 if let Ok(_) = successful_upgrade {
-                    // Vérifier si la tour existe toujours (au cas où)
                     if tower_index < self.game.towers.len() {
-                        // Rafraîchir le menu d'amélioration avec les nouvelles informations
-                        self.upgrade_tower(tower_index);
-                        // Rester en mode amélioration
+                        self.upgrade_tower(tower_index, Some(current_selection));
                         return;
                     }
                 }

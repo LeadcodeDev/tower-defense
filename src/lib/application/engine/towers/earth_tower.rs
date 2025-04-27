@@ -27,7 +27,9 @@ impl EarthTower {
                 damage: 15.0,
                 attacks_per_second: 0.8,
                 aoe: false,
-                behavior: TowerBehavior::Basic,
+                behavior: TowerBehavior::Crusher {
+                    armor_reduction: 0.15,
+                },
                 last_attack: 0.0,
                 target_selection: TargetSelection::Strongest,
                 upgrade_level: 0,

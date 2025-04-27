@@ -67,6 +67,7 @@ pub struct BaseStats {
 pub struct TowerUpgradeElement {
     pub price_multiplier: f32,
     pub value_multiplier: f32,
+    pub level: u32,
 }
 
 impl TowerUpgradeElement {
@@ -74,6 +75,7 @@ impl TowerUpgradeElement {
         Self {
             price_multiplier,
             value_multiplier,
+            level: 0,
         }
     }
 }
@@ -173,13 +175,13 @@ impl Tower {
     }
 
     pub fn upgrade_attack_speed(&mut self) -> Result<String, String> {
-        if self.stats.upgrade_level >= 30 {
-            return Err("The level is maxed out".to_string());
+        if self.upgrades.attacks_speed.level >= 30 {
+            return Err("The attack speed is already at max level".to_string());
         }
 
         let current_attack_speed = self.attacks_per_second();
         self.stats.attacks_per_second *= self.upgrades.attacks_speed.value_multiplier;
-        self.stats.upgrade_level += 1;
+        self.upgrades.attacks_speed.level += 1;
 
         Ok(format!(
             "🔧 Tower {} attack speed upgraded ({} -> {})",
@@ -190,13 +192,13 @@ impl Tower {
     }
 
     pub fn upgrade_damage(&mut self) -> Result<String, String> {
-        if self.stats.upgrade_level >= 30 {
-            return Err("The level is maxed out".to_string());
+        if self.upgrades.damage.level >= 30 {
+            return Err("The damage is already at max level".to_string());
         }
 
         let current_damage = self.damage();
         self.stats.damage *= self.upgrades.damage.value_multiplier;
-        self.stats.upgrade_level += 1;
+        self.upgrades.damage.level += 1;
 
         Ok(format!(
             "🔧 Tower {} damage upgraded ({} -> {})",
@@ -207,13 +209,13 @@ impl Tower {
     }
 
     pub fn upgrade_range(&mut self) -> Result<String, String> {
-        if self.stats.upgrade_level >= 30 {
-            return Err("The level is maxed out".to_string());
+        if self.upgrades.range.level >= 30 {
+            return Err("The range is already at max level".to_string());
         }
 
         let current_range = self.range();
         self.stats.range += self.upgrades.range.value_multiplier;
-        self.stats.upgrade_level += 1;
+        self.upgrades.range.level += 1;
 
         Ok(format!(
             "🔧 Tower {} range upgraded ({} -> {})",
@@ -234,7 +236,12 @@ impl Tower {
     }
 
     pub fn upgrade_cost_for_attribute(&self, upgrade_type: UpgradeType) -> u32 {
-        let level = self.upgrade_level();
+        let level = match upgrade_type {
+            UpgradeType::Damage => self.upgrades.damage.level,
+            UpgradeType::AttackSpeed => self.upgrades.attacks_speed.level,
+            UpgradeType::Range => self.upgrades.range.level,
+        };
+
         let base = (self.upgrades.base_cost as f32 * 1.3_f32.powi(level as i32)).round() as u32;
 
         let synergy_factor = match upgrade_type {
@@ -303,12 +310,14 @@ impl Tower {
                 // Appliquer les dégâts à la cible primaire d'abord
                 if let Some(monster) = wave.monsters.get_mut(target_idx) {
                     let damage = self.damage();
-                    monster.hp -= damage;
+                    // Appliquer les effets du comportement de la tour
+                    let actual_damage = self.behavior().apply(monster, damage);
+                    monster.hp -= actual_damage;
 
                     logs.push(format!(
                         "🏹 Tourelle {:?} attaque! -{:.1} HP sur {}. HP restants: {:.1}",
                         self.element(),
-                        damage,
+                        actual_damage,
                         monster.name,
                         monster.hp
                     ));
@@ -332,11 +341,13 @@ impl Tower {
                         // Si le monstre est dans le rayon de l'AOE
                         if distance <= aoe_radius {
                             let aoe_damage = self.damage() * 0.5; // 50% des dégâts pour l'AOE
-                            monster.hp -= aoe_damage;
+                            // Appliquer les effets du comportement de la tour
+                            let actual_aoe_damage = self.behavior().apply(monster, aoe_damage);
+                            monster.hp -= actual_aoe_damage;
 
                             let log_message = format!(
                                 "🔥 Effet AOE! -{:.1} HP sur {}. HP restants: {:.1}",
-                                aoe_damage, monster.name, monster.hp
+                                actual_aoe_damage, monster.name, monster.hp
                             );
                             logs.push(log_message);
                         }
