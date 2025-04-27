@@ -16,6 +16,7 @@ pub fn render(app: &App, frame: &mut Frame) {
     match app.current_view {
         View::Game => render_game_view(app, frame),
         View::MainMenu => render_main_menu(app, frame),
+        View::MapSelection => render_map_selection(app, frame),
         View::Pause => render_pause_menu(app, frame),
         View::GameOver => render_game_over(app, frame),
     }
@@ -345,6 +346,21 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                     TowerType::Air => {
                         format!("Tour d'air (A) - Attaque rapide - 💰 {}", tower_type.cost())
                     }
+                    TowerType::Lightning => {
+                        format!(
+                            "Tour de foudre (L) - Étourdissement - 💰 {}",
+                            tower_type.cost()
+                        )
+                    }
+                    TowerType::Ice => {
+                        format!("Tour de glace (I) - Gel - 💰 {}", tower_type.cost())
+                    }
+                    TowerType::Poison => {
+                        format!(
+                            "Tour de poison (P) - Dégâts continus - 💰 {}",
+                            tower_type.cost()
+                        )
+                    }
                 };
 
                 // Mettre en surbrillance la tour sélectionnée
@@ -390,6 +406,9 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                     TowerType::Water => "d'eau",
                     TowerType::Earth => "de terre",
                     TowerType::Air => "d'air",
+                    TowerType::Lightning => "de foudre",
+                    TowerType::Ice => "de glace",
+                    TowerType::Poison => "de poison",
                 };
 
                 (
@@ -590,6 +609,14 @@ fn render_logs(app: &App, frame: &mut Frame, area: Rect) {
 
 /// Affiche le menu principal
 fn render_main_menu(app: &App, frame: &mut Frame) {
+    // Créer un titre et des options pour le menu principal
+    let title = Line::from(Span::styled(
+        "TOWER DEFENSE",
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    ));
+
     let items = vec![
         ("Démarrer une nouvelle partie", app.selected_index == 0),
         ("Quitter", app.selected_index == 1),
@@ -614,21 +641,34 @@ fn render_main_menu(app: &App, frame: &mut Frame) {
         })
         .collect();
 
-    let title = Line::from(Span::styled(
-        "PAUSE",
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    ));
-
-    let mut all_lines = vec![title, Line::from("")];
+    let mut all_lines = vec![
+        title,
+        Line::from(""),
+        Line::from(Span::styled(
+            "Défendez votre territoire contre des vagues d'ennemis",
+            Style::default().fg(Color::Gray),
+        )),
+        Line::from(""),
+    ];
     all_lines.extend(menu_items);
 
-    let menu = Paragraph::new(all_lines)
-        .block(Block::default().borders(Borders::ALL).title("Pause"))
-        .style(Style::default().fg(Color::White));
+    // Ajouter des instructions
+    all_lines.push(Line::from(""));
+    all_lines.push(Line::from(Span::styled(
+        "Utilisez ↑↓ pour naviguer et Entrée pour sélectionner",
+        Style::default().fg(Color::Gray),
+    )));
 
-    frame.render_widget(menu, centered_rect(30, 20, frame.area()));
+    let menu = Paragraph::new(all_lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Menu Principal"),
+        )
+        .alignment(ratatui::layout::Alignment::Center);
+
+    // Centrer le menu sur l'écran
+    frame.render_widget(menu, centered_rect(60, 40, frame.area()));
 }
 
 /// Affiche le menu de pause
@@ -754,4 +794,99 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
+}
+
+/// Affiche l'écran de sélection de carte
+fn render_map_selection(app: &App, frame: &mut Frame) {
+    let area = frame.area();
+
+    // Créer un titre pour l'écran
+    let title = Paragraph::new(Line::from(Span::styled(
+        "SÉLECTION DE CARTE",
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    )))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Tower Defense"),
+    )
+    .alignment(ratatui::layout::Alignment::Center);
+
+    // Diviser l'écran en sections
+    let chunks = Layout::vertical([
+        Constraint::Length(3), // Pour le titre
+        Constraint::Min(10),   // Pour la liste des cartes
+        Constraint::Length(3), // Pour les instructions
+    ])
+    .split(area);
+
+    frame.render_widget(title, chunks[0]);
+
+    // Créer la liste des cartes
+    let mut map_items = Vec::new();
+
+    for (idx, map_type) in app.available_maps.iter().enumerate() {
+        let is_selected = idx == app.selected_index;
+        let map_name = map_type.get_name();
+        let map_desc = map_type.get_description();
+
+        let style = if is_selected {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+
+        let mut content = Vec::new();
+
+        // Ajouter une flèche pour indiquer la sélection
+        if is_selected {
+            content.push(Span::styled("> ", style));
+        } else {
+            content.push(Span::styled("  ", style));
+        }
+
+        // Ajouter le nom de la carte
+        content.push(Span::styled(map_name, style));
+        content.push(Span::raw(" - "));
+        content.push(Span::styled(map_desc, Style::default().fg(Color::Gray)));
+
+        map_items.push(ListItem::new(Line::from(content)));
+    }
+
+    let maps_list = List::new(map_items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Cartes disponibles"),
+        )
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+        .highlight_symbol("> ");
+
+    frame.render_widget(maps_list, chunks[1]);
+
+    // Ajouter des instructions
+    let instructions = Paragraph::new(Line::from(vec![
+        Span::styled("Utilisez ", Style::default().fg(Color::Gray)),
+        Span::styled(
+            "↑↓",
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" pour naviguer et ", Style::default().fg(Color::Gray)),
+        Span::styled(
+            "Entrée",
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" pour sélectionner.", Style::default().fg(Color::Gray)),
+    ]))
+    .alignment(ratatui::layout::Alignment::Center);
+
+    frame.render_widget(instructions, chunks[2]);
 }

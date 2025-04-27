@@ -1,3 +1,4 @@
+use crate::application::engine::maps::MapType;
 use crate::application::engine::maps::forest::ForestMap;
 use crate::domain::entities::{game::Game, position::Position};
 use crate::domain::entities::{tower::TowerKind, wave::Wave};
@@ -33,6 +34,9 @@ pub enum TowerType {
     Water,
     Earth,
     Air,
+    Lightning,
+    Ice,
+    Poison,
 }
 
 impl TowerType {
@@ -44,6 +48,9 @@ impl TowerType {
             TowerType::Water => 75,
             TowerType::Earth => 100,
             TowerType::Air => 100,
+            TowerType::Lightning => 110,
+            TowerType::Ice => 95,
+            TowerType::Poison => 90,
         }
     }
 
@@ -55,6 +62,9 @@ impl TowerType {
             TowerType::Water => TowerKind::Water,
             TowerType::Earth => TowerKind::Earth,
             TowerType::Air => TowerKind::Air,
+            TowerType::Lightning => TowerKind::Lightning,
+            TowerType::Ice => TowerKind::Ice,
+            TowerType::Poison => TowerKind::Poison,
         }
     }
 }
@@ -121,6 +131,10 @@ pub struct App {
     pub tower_selection_on_map: bool,
     /// Index de la tourelle sélectionnée sur la carte
     pub selected_tower_index: Option<usize>,
+    /// Les cartes disponibles
+    pub available_maps: Vec<MapType>,
+    /// La carte sélectionnée
+    pub selected_map: Option<MapType>,
 }
 
 /// Les différentes vues disponibles dans l'application
@@ -134,6 +148,8 @@ pub enum View {
     Pause,
     /// Écran de fin de jeu
     GameOver,
+    /// Écran de sélection de carte
+    MapSelection,
 }
 
 impl App {
@@ -155,10 +171,13 @@ impl App {
             TowerType::Air,
         ];
 
+        // Cartes disponibles
+        let maps = MapType::all_maps();
+
         Self {
             running: true,
             game,
-            current_view: View::Game,
+            current_view: View::MainMenu,
             selected_index: 0,
             available_actions: actions,
             available_towers: towers,
@@ -168,6 +187,8 @@ impl App {
             upgrade_menu: None,
             tower_selection_on_map: false,
             selected_tower_index: None,
+            available_maps: maps,
+            selected_map: None,
         }
     }
 
@@ -236,6 +257,7 @@ impl App {
                 }
             }
             View::MainMenu => 2, // Nombre d'options dans le menu principal
+            View::MapSelection => self.available_maps.len(), // Nombre de cartes disponibles
             View::Pause => 2,    // Nombre d'options dans le menu de pause
             View::GameOver => 2, // Nombre d'options dans le menu de game over
         }
@@ -327,7 +349,7 @@ impl App {
         }
     }
 
-    /// Valide l'action sélectionnée
+    /// Valide l'action sélectionnée en fonction de la vue courante
     pub fn confirm_selection(&mut self) {
         match self.current_view {
             View::Game => {
@@ -411,6 +433,11 @@ impl App {
                                 TowerType::Water => self.add_water_tower(self.cursor_position),
                                 TowerType::Earth => self.add_earth_tower(self.cursor_position),
                                 TowerType::Air => self.add_air_tower(self.cursor_position),
+                                TowerType::Lightning => {
+                                    self.add_lightning_tower(self.cursor_position)
+                                }
+                                TowerType::Ice => self.add_ice_tower(self.cursor_position),
+                                TowerType::Poison => self.add_poison_tower(self.cursor_position),
                             }
 
                             // Retourner au mode normal après le placement
@@ -442,24 +469,55 @@ impl App {
                     }
                 }
             }
-            View::MainMenu => match self.selected_index {
-                0 => self.set_view(View::Game),
-                1 => self.quit(),
-                _ => {}
-            },
-            View::Pause => match self.selected_index {
-                0 => self.set_view(View::Game),
-                1 => self.quit(),
-                _ => {}
-            },
+            View::MainMenu => {
+                match self.selected_index {
+                    0 => {
+                        // Passer à la sélection de la carte
+                        self.set_view(View::MapSelection);
+                    }
+                    1 => {
+                        self.quit();
+                    }
+                    _ => {}
+                }
+            }
+            View::MapSelection => {
+                // Sélectionner une carte
+                if self.selected_index < self.available_maps.len() {
+                    let selected_map = self.available_maps[self.selected_index];
+                    self.selected_map = Some(selected_map);
+
+                    // Créer une nouvelle partie avec la carte sélectionnée
+                    let map = selected_map.create_map();
+                    let wave = crate::domain::entities::wave::Wave::new(None);
+                    self.game =
+                        crate::domain::entities::game::Game::new(map, vec![wave], vec![], 10, 1.0);
+
+                    // Passer à l'écran de jeu
+                    self.set_view(View::Game);
+                }
+            }
+            View::Pause => {
+                match self.selected_index {
+                    0 => {
+                        // Reprendre la partie
+                        self.set_view(View::Game);
+                    }
+                    1 => {
+                        self.quit();
+                    }
+                    _ => {}
+                }
+            }
             View::GameOver => {
                 match self.selected_index {
                     0 => {
-                        // Créer un nouveau jeu
-                        self.reset_game();
-                        self.set_view(View::Game);
+                        // Nouvelle partie - passer à la sélection de carte
+                        self.set_view(View::MapSelection);
                     }
-                    1 => self.quit(),
+                    1 => {
+                        self.quit();
+                    }
                     _ => {}
                 }
             }
@@ -528,6 +586,61 @@ impl App {
             if self.game.spend_money(TowerType::Air.cost()) {
                 self.game.add_air_tower(position);
             }
+        }
+    }
+
+    pub fn add_lightning_tower(&mut self, position: Position) {
+        if self.game.has_enough_money(TowerType::Lightning.cost()) {
+            if self.game.spend_money(TowerType::Lightning.cost()) {
+                // Create a Lightning tower implementation
+                let tower = crate::application::engine::towers::lightning_tower::LightningTower::positionned(position);
+                self.game.towers.push(tower);
+                self.game.add_log(format!(
+                    "Tour de foudre placée en [{}, {}]",
+                    position.x, position.y
+                ));
+            }
+        } else {
+            self.game
+                .add_log("Pas assez d'argent pour cette tour!".to_string());
+        }
+    }
+
+    pub fn add_ice_tower(&mut self, position: Position) {
+        if self.game.has_enough_money(TowerType::Ice.cost()) {
+            if self.game.spend_money(TowerType::Ice.cost()) {
+                // Create an Ice tower implementation
+                let tower =
+                    crate::application::engine::towers::ice_tower::IceTower::positionned(position);
+                self.game.towers.push(tower);
+                self.game.add_log(format!(
+                    "Tour de glace placée en [{}, {}]",
+                    position.x, position.y
+                ));
+            }
+        } else {
+            self.game
+                .add_log("Pas assez d'argent pour cette tour!".to_string());
+        }
+    }
+
+    pub fn add_poison_tower(&mut self, position: Position) {
+        if self.game.has_enough_money(TowerType::Poison.cost()) {
+            if self.game.spend_money(TowerType::Poison.cost()) {
+                // Create a Poison tower implementation
+                let tower =
+                    crate::application::engine::towers::poison_tower::PoisonTower::positionned(
+                        position,
+                    );
+                self.game.towers.push(tower);
+                self.game.add_log(format!(
+                    "Tour de poison placée en [{}, {}]",
+                    position.x, position.y
+                ));
+            }
+        } else {
+            self.game
+                .add_log("Pas assez d'argent pour cette tour!".to_string());
         }
     }
 

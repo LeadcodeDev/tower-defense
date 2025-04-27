@@ -255,7 +255,6 @@ impl Game {
 
             // Gestion des monstres arrivés/morts
             let mut rem = Vec::new();
-            let mut wave_is_empty = false;
 
             for m in wave.monsters.drain(..) {
                 if m.is_alive() {
@@ -276,19 +275,13 @@ impl Game {
                     logs_to_add.push(log_message);
 
                     // On stocke les récompenses à ajouter plus tard pour éviter le double emprunt mutable
-                    logs_to_add.push(format!(
-                        "💰 Gain de {} pièces! Total: {}",
-                        reward,
-                        self.money + reward
-                    ));
+                    logs_to_add.push(format!("💰 +{} pièces!", reward));
                     self.money += reward;
-                } else {
-                    // Monstre inactif ou en attente de spawn
-                    rem.push(m);
                 }
             }
+
             wave.monsters = rem;
-            wave_is_empty = wave.monsters.is_empty();
+            let is_wave_empty = wave.monsters.is_empty();
 
             // Ajouter tous les logs collectés
             for log in logs_to_add {
@@ -296,14 +289,13 @@ impl Game {
             }
 
             // Si la vague est terminée, la supprimer et donner une récompense
-            if wave_is_empty {
+            if is_wave_empty {
                 let wave_bonus = 20 * self.wave_index as u32; // Bonus de fin de vague
                 self.money += wave_bonus;
-                let log_message = format!(
-                    "🏆 Vague {} terminée! Bonus de +{} pièces",
+                self.add_log(format!(
+                    "🎖️ Vague {} terminée! Bonus: {} pièces",
                     self.wave_index, wave_bonus
-                );
-                self.add_log(log_message);
+                ));
                 self.current_wave = None;
 
                 // Si le joueur a encore des PV, lancer automatiquement la prochaine vague

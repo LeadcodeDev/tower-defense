@@ -18,6 +18,7 @@ pub enum TerrainType {
     Mountain,
     Swamp,
     Snow,
+    Cave,
 }
 
 impl TerrainType {
@@ -30,6 +31,7 @@ impl TerrainType {
             TerrainType::Mountain => 0.6, // -40% de vitesse
             TerrainType::Swamp => 0.5,    // -50% de vitesse
             TerrainType::Snow => 0.6,     // -40% de vitesse
+            TerrainType::Cave => 0.65,    // -35% de vitesse
         }
     }
 
@@ -42,6 +44,7 @@ impl TerrainType {
             TerrainType::Mountain => "Montagne",
             TerrainType::Swamp => "Marais",
             TerrainType::Snow => "Neige",
+            TerrainType::Cave => "Caverne",
         }
     }
 }
