@@ -302,9 +302,9 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
             // Afficher les actions principales
             for (i, action) in app.available_actions.iter().enumerate() {
                 let text = match action {
-                    GameAction::BuildTower => "Construire une tour",
-                    GameAction::RemoveTower => "Supprimer une tour",
-                    GameAction::UpgradeTower => "Améliorer une tour existante",
+                    GameAction::BuildTower => "🧱 Construire une tour",
+                    GameAction::RemoveTower => "🗑️ Supprimer une tour",
+                    GameAction::UpgradeTower => "🔧 Améliorer une tour existante",
                 };
 
                 // Mettre en surbrillance l'action sélectionnée
@@ -374,17 +374,6 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
 
                 action_items.push(ListItem::new(Span::styled(text, style)));
             }
-
-            // Ajouter une option pour annuler
-            let cancel_style = if app.selected_index == app.available_towers.len() {
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            };
-
-            action_items.push(ListItem::new(Span::styled("Annuler", cancel_style)));
 
             let tower_list = List::new(action_items)
                 .block(
@@ -517,19 +506,6 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
 
                         action_items.push(ListItem::new(Span::styled(text, style)));
                     }
-
-                    // Ajouter une option pour annuler
-                    let cancel_style =
-                        if upgrade_menu.selected_upgrade == upgrade_menu.available_upgrades.len() {
-                            Style::default()
-                                .fg(Color::Yellow)
-                                .add_modifier(Modifier::BOLD)
-                        } else {
-                            Style::default().fg(Color::White)
-                        };
-
-                    action_items.push(ListItem::new(""));
-                    action_items.push(ListItem::new(Span::styled("Annuler", cancel_style)));
                 }
             } else {
                 // Afficher la liste des tours disponibles pour amélioration

@@ -255,6 +255,7 @@ impl Game {
 
             // Gestion des monstres arrivés/morts
             let mut rem = Vec::new();
+            let mut wave_is_empty = false;
 
             for m in wave.monsters.drain(..) {
                 if m.is_alive() {
@@ -275,13 +276,19 @@ impl Game {
                     logs_to_add.push(log_message);
 
                     // On stocke les récompenses à ajouter plus tard pour éviter le double emprunt mutable
-                    logs_to_add.push(format!("💰 +{} pièces!", reward));
+                    logs_to_add.push(format!(
+                        "💰 Gain de {} pièces! Total: {}",
+                        reward,
+                        self.money + reward
+                    ));
                     self.money += reward;
+                } else {
+                    // Monstre inactif ou en attente de spawn
+                    rem.push(m);
                 }
             }
-
             wave.monsters = rem;
-            let is_wave_empty = wave.monsters.is_empty();
+            wave_is_empty = wave.monsters.is_empty();
 
             // Ajouter tous les logs collectés
             for log in logs_to_add {
@@ -289,13 +296,14 @@ impl Game {
             }
 
             // Si la vague est terminée, la supprimer et donner une récompense
-            if is_wave_empty {
+            if wave_is_empty {
                 let wave_bonus = 20 * self.wave_index as u32; // Bonus de fin de vague
                 self.money += wave_bonus;
-                self.add_log(format!(
-                    "🎖️ Vague {} terminée! Bonus: {} pièces",
+                let log_message = format!(
+                    "🏆 Vague {} terminée! Bonus de +{} pièces",
                     self.wave_index, wave_bonus
-                ));
+                );
+                self.add_log(log_message);
                 self.current_wave = None;
 
                 // Si le joueur a encore des PV, lancer automatiquement la prochaine vague
@@ -340,11 +348,11 @@ impl Game {
         }
     }
 
-    /// Améliore la vitesse d'attaque d'une tour
-    pub fn upgrade_tower_attack_speed(&mut self, tower_index: usize) -> bool {
+    pub fn upgrade_tower_attack_speed(&mut self, tower_index: usize) -> Result<String, String> {
         if tower_index >= self.towers.len() {
-            self.add_log("❌ Index de tour invalide!".to_string());
-            return false;
+            let message = "❌ Invalid tower index".to_string();
+            self.add_log(message.clone());
+            return Err(message);
         }
 
         let tower = &self.towers[tower_index];
@@ -352,33 +360,29 @@ impl Game {
         let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
 
         if !self.has_enough_money(upgrade_cost) {
-            self.add_log(format!(
-                "❌ Pas assez de pièces pour améliorer! ({})",
-                self.money
-            ));
-            return false;
+            let message = format!("❌ Missing money ({})", self.money);
+            self.add_log(message.clone());
+            return Err(message);
         }
 
-        // Essayer d'améliorer la vitesse d'attaque
-        if self.towers[tower_index].upgrade_attack_speed() {
-            self.spend_money(upgrade_cost);
-            let tower_type = self.towers[tower_index].tower_type_name();
-            self.add_log(format!(
-                "🔧 Tour {} améliorée: Vitesse d'attaque +",
-                tower_type
-            ));
-            return true;
-        } else {
-            self.add_log("❌ Impossible d'améliorer davantage la vitesse d'attaque!".to_string());
-            return false;
+        match self.towers[tower_index].upgrade_attack_speed() {
+            Ok(message) => {
+                self.spend_money(upgrade_cost);
+                self.add_log(message);
+                Ok("Attack speed upgraded".to_string())
+            }
+            Err(error) => {
+                self.add_log(error.clone());
+                Err(error)
+            }
         }
     }
 
-    /// Améliore les dégâts d'une tour
-    pub fn upgrade_tower_damage(&mut self, tower_index: usize) -> bool {
+    pub fn upgrade_tower_damage(&mut self, tower_index: usize) -> Result<String, String> {
         if tower_index >= self.towers.len() {
-            self.add_log("❌ Index de tour invalide!".to_string());
-            return false;
+            let message = "❌ Invalid tower index".to_string();
+            self.add_log(message.clone());
+            return Err(message);
         }
 
         let tower = &self.towers[tower_index];
@@ -386,30 +390,30 @@ impl Game {
         let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
 
         if !self.has_enough_money(upgrade_cost) {
-            self.add_log(format!(
-                "❌ Pas assez de pièces pour améliorer! ({})",
-                self.money
-            ));
-            return false;
+            let message = format!("❌ Missing money ({})", self.money);
+            self.add_log(message.clone());
+            return Err(message);
         }
 
-        // Essayer d'améliorer les dégâts
-        if self.towers[tower_index].upgrade_damage() {
-            self.spend_money(upgrade_cost);
-            let tower_type = self.towers[tower_index].tower_type_name();
-            self.add_log(format!("🔧 Tour {} améliorée: Dégâts +", tower_type));
-            return true;
-        } else {
-            self.add_log("❌ Impossible d'améliorer davantage les dégâts!".to_string());
-            return false;
+        match self.towers[tower_index].upgrade_damage() {
+            Ok(_) => {
+                self.spend_money(upgrade_cost);
+                let tower_type = self.towers[tower_index].tower_type_name();
+                self.add_log(format!("🔧 Tour {} améliorée: Dégâts +", tower_type));
+                Ok("Damage upgraded".to_string())
+            }
+            Err(error) => {
+                self.add_log(error.clone());
+                Err(error)
+            }
         }
     }
 
-    /// Améliore la portée d'une tour
-    pub fn upgrade_tower_range(&mut self, tower_index: usize) -> bool {
+    pub fn upgrade_tower_range(&mut self, tower_index: usize) -> Result<String, String> {
         if tower_index >= self.towers.len() {
-            self.add_log("❌ Index de tour invalide!".to_string());
-            return false;
+            let message = "❌ Invalid tower index".to_string();
+            self.add_log(message.clone());
+            return Err(message);
         }
 
         let tower = &self.towers[tower_index];
@@ -417,22 +421,21 @@ impl Game {
         let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
 
         if !self.has_enough_money(upgrade_cost) {
-            self.add_log(format!(
-                "❌ Pas assez de pièces pour améliorer! ({})",
-                self.money
-            ));
-            return false;
+            let message = format!("❌ Missing money ({})", self.money);
+            self.add_log(message.clone());
+            return Err(message);
         }
 
-        // Essayer d'améliorer la portée
-        if self.towers[tower_index].upgrade_range() {
-            self.spend_money(upgrade_cost);
-            let tower_type = self.towers[tower_index].tower_type_name();
-            self.add_log(format!("🔧 Tour {} améliorée: Portée +", tower_type));
-            return true;
-        } else {
-            self.add_log("❌ Impossible d'améliorer davantage la portée!".to_string());
-            return false;
+        match self.towers[tower_index].upgrade_range() {
+            Ok(message) => {
+                self.spend_money(upgrade_cost);
+                self.add_log(message);
+                Ok("Range upgraded".to_string())
+            }
+            Err(error) => {
+                self.add_log(error.clone());
+                Err(error)
+            }
         }
     }
 }

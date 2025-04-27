@@ -2,7 +2,7 @@ use crate::domain::entities::{
     behavior::TowerBehavior,
     element::Element,
     position::Position,
-    tower::{BaseStats, Tower, TowerKind, TowerStats},
+    tower::{BaseStats, Tower, TowerKind, TowerStats, TowerUpgradeElement, TowerUpgrades},
 };
 
 pub struct IceTower;
@@ -10,6 +10,13 @@ pub struct IceTower;
 impl IceTower {
     pub fn positionned(position: Position) -> Tower {
         Tower {
+            name: "Ice Tower".to_string(),
+            upgrades: TowerUpgrades::new(
+                50,
+                TowerUpgradeElement::new(3.8, 0.5),
+                TowerUpgradeElement::new(10.0, 1.25),
+                TowerUpgradeElement::new(0.7, 1.2),
+            ),
             stats: TowerStats {
                 position,
                 range: 3.8,

@@ -63,6 +63,45 @@ pub struct BaseStats {
     pub attacks_per_second: f32,
 }
 
+#[derive(Debug, Clone)]
+pub struct TowerUpgradeElement {
+    pub price_multiplier: f32,
+    pub value_multiplier: f32,
+}
+
+impl TowerUpgradeElement {
+    pub fn new(price_multiplier: f32, value_multiplier: f32) -> Self {
+        Self {
+            price_multiplier,
+            value_multiplier,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TowerUpgrades {
+    pub base_cost: u32,
+    pub range: TowerUpgradeElement,
+    pub damage: TowerUpgradeElement,
+    pub attacks_speed: TowerUpgradeElement,
+}
+
+impl TowerUpgrades {
+    pub fn new(
+        base_cost: u32,
+        range: TowerUpgradeElement,
+        damage: TowerUpgradeElement,
+        attacks_speed: TowerUpgradeElement,
+    ) -> Self {
+        Self {
+            base_cost,
+            range,
+            damage,
+            attacks_speed,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TowerKind {
     Basic,
@@ -78,7 +117,9 @@ pub enum TowerKind {
 /// Structure uniforme pour toutes les tourelles
 #[derive(Debug, Clone)]
 pub struct Tower {
+    pub name: String,
     pub stats: TowerStats,
+    pub upgrades: TowerUpgrades,
 }
 
 impl Tower {
@@ -131,152 +172,75 @@ impl Tower {
         time_since_last_attack >= 1.0 / self.attacks_per_second()
     }
 
-    pub fn upgrade_attack_speed(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.stats.upgrade_level >= 5 {
-            return false;
+    pub fn upgrade_attack_speed(&mut self) -> Result<String, String> {
+        if self.stats.upgrade_level >= 30 {
+            return Err("The level is maxed out".to_string());
         }
 
-        // Facteurs d'amélioration pour chaque type de tour
-        let factor = match self.stats.tower_type {
-            TowerKind::Basic => 1.2,
-            TowerKind::Fire => 1.15,
-            TowerKind::Water => 1.18,
-            TowerKind::Earth => 1.25,
-            TowerKind::Air => 1.15,
-            TowerKind::Lightning => 1.15,
-            TowerKind::Ice => 1.15,
-            TowerKind::Poison => 1.15,
-        };
-
-        self.stats.attacks_per_second *= factor;
+        let current_attack_speed = self.attacks_per_second();
+        self.stats.attacks_per_second *= self.upgrades.attacks_speed.value_multiplier;
         self.stats.upgrade_level += 1;
-        true
+
+        Ok(format!(
+            "🔧 Tower {} attack speed upgraded ({} -> {})",
+            self.tower_type_name(),
+            current_attack_speed,
+            self.attacks_per_second()
+        ))
     }
 
-    pub fn upgrade_damage(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.stats.upgrade_level >= 5 {
-            return false;
+    pub fn upgrade_damage(&mut self) -> Result<String, String> {
+        if self.stats.upgrade_level >= 30 {
+            return Err("The level is maxed out".to_string());
         }
 
-        // Facteurs d'amélioration pour chaque type de tour
-        let factor = match self.stats.tower_type {
-            TowerKind::Basic => 1.25,
-            TowerKind::Fire => 1.3,
-            TowerKind::Water => 1.22,
-            TowerKind::Earth => 1.2,
-            TowerKind::Air => 1.25,
-            TowerKind::Lightning => 1.3,
-            TowerKind::Ice => 1.25,
-            TowerKind::Poison => 1.25,
-        };
-
-        self.stats.damage *= factor;
+        let current_damage = self.damage();
+        self.stats.damage *= self.upgrades.damage.value_multiplier;
         self.stats.upgrade_level += 1;
-        true
+
+        Ok(format!(
+            "🔧 Tower {} damage upgraded ({} -> {})",
+            self.tower_type_name(),
+            current_damage,
+            self.damage()
+        ))
     }
 
-    pub fn upgrade_range(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.stats.upgrade_level >= 5 {
-            return false;
+    pub fn upgrade_range(&mut self) -> Result<String, String> {
+        if self.stats.upgrade_level >= 30 {
+            return Err("The level is maxed out".to_string());
         }
 
-        // Bonus de portée pour chaque type de tour
-        let bonus = match self.stats.tower_type {
-            TowerKind::Basic => 0.5,
-            TowerKind::Fire => 0.75,
-            TowerKind::Water => 0.6,
-            TowerKind::Earth => 0.4,
-            TowerKind::Air => 0.5,
-            TowerKind::Lightning => 0.75,
-            TowerKind::Ice => 0.6,
-            TowerKind::Poison => 0.5,
-        };
-
-        self.stats.range += bonus;
+        let current_range = self.range();
+        self.stats.range += self.upgrades.range.value_multiplier;
         self.stats.upgrade_level += 1;
-        true
+
+        Ok(format!(
+            "🔧 Tower {} range upgraded ({} -> {})",
+            self.tower_type_name(),
+            current_range,
+            self.range()
+        ))
     }
 
     /// Retourne le coût d'amélioration en fonction du niveau actuel
     pub fn upgrade_cost(&self) -> u32 {
-        let base_cost = match self.stats.tower_type {
-            TowerKind::Basic => 25,
-            TowerKind::Fire => 40,
-            TowerKind::Water => 40,
-            TowerKind::Earth => 50,
-            TowerKind::Air => 50,
-            TowerKind::Lightning => 50,
-            TowerKind::Ice => 50,
-            TowerKind::Poison => 50,
-        };
-
-        // Algorithme de croissance exponentielle avec base linéaire
         let level = self.upgrade_level();
         let exponential_factor = 1.5_f32.powi(level as i32);
         let linear_component = 20 * level;
 
-        (base_cost as f32 * exponential_factor + linear_component as f32).round() as u32
+        (self.upgrades.base_cost as f32 * exponential_factor + linear_component as f32).round()
+            as u32
     }
 
-    /// Retourne le coût d'amélioration spécifique à une caractéristique
     pub fn upgrade_cost_for_attribute(&self, upgrade_type: UpgradeType) -> u32 {
-        let base_cost = match self.stats.tower_type {
-            TowerKind::Basic => 30,
-            TowerKind::Fire => 45,
-            TowerKind::Water => 40,
-            TowerKind::Earth => 55,
-            TowerKind::Air => 50,
-            TowerKind::Lightning => 50,
-            TowerKind::Ice => 50,
-            TowerKind::Poison => 50,
-        };
-
         let level = self.upgrade_level();
+        let base = (self.upgrades.base_cost as f32 * 1.3_f32.powi(level as i32)).round() as u32;
 
-        // Coût de base avec croissance exponentielle
-        let base = (base_cost as f32 * 1.3_f32.powi(level as i32)).round() as u32;
-
-        // Facteur de synergie basé sur l'élément et la caractéristique
-        let synergy_factor = match self.stats.tower_type {
-            TowerKind::Basic => 1.0, // Pas de synergie spéciale
-            TowerKind::Fire => match upgrade_type {
-                UpgradeType::Damage => 1.2, // Les tours de feu sont meilleures en dégâts
-                UpgradeType::AttackSpeed => 0.9, // Un peu moins chères pour la vitesse
-                UpgradeType::Range => 1.1,  // Standard pour la portée
-            },
-            TowerKind::Water => match upgrade_type {
-                UpgradeType::Damage => 0.9,      // Moins chères pour les dégâts
-                UpgradeType::AttackSpeed => 1.0, // Standard pour la vitesse
-                UpgradeType::Range => 1.2,       // Meilleures en portée
-            },
-            TowerKind::Earth => match upgrade_type {
-                UpgradeType::Damage => 1.1,      // Un peu meilleures en dégâts
-                UpgradeType::AttackSpeed => 1.2, // Meilleures en vitesse d'attaque
-                UpgradeType::Range => 0.9,       // Moins chères pour la portée
-            },
-            TowerKind::Air => match upgrade_type {
-                UpgradeType::Damage => 1.0,      // Standard pour les dégâts
-                UpgradeType::AttackSpeed => 1.3, // Bien meilleures en vitesse
-                UpgradeType::Range => 0.8,       // Moins chères pour la portée
-            },
-            TowerKind::Lightning => match upgrade_type {
-                UpgradeType::Damage => 1.2,
-                UpgradeType::AttackSpeed => 0.9,
-                UpgradeType::Range => 1.1,
-            },
-            TowerKind::Ice => match upgrade_type {
-                UpgradeType::Damage => 1.1,
-                UpgradeType::AttackSpeed => 1.2,
-                UpgradeType::Range => 0.9,
-            },
-            TowerKind::Poison => match upgrade_type {
-                UpgradeType::Damage => 1.0,
-                UpgradeType::AttackSpeed => 1.3,
-                UpgradeType::Range => 0.8,
-            },
+        let synergy_factor = match upgrade_type {
+            UpgradeType::Damage => self.upgrades.damage.price_multiplier,
+            UpgradeType::AttackSpeed => self.upgrades.attacks_speed.price_multiplier,
+            UpgradeType::Range => self.upgrades.range.price_multiplier,
         };
 
         (base as f32 * synergy_factor).round() as u32
@@ -341,14 +305,13 @@ impl Tower {
                     let damage = self.damage();
                     monster.hp -= damage;
 
-                    let log_message = format!(
+                    logs.push(format!(
                         "🏹 Tourelle {:?} attaque! -{:.1} HP sur {}. HP restants: {:.1}",
                         self.element(),
                         damage,
                         monster.name,
                         monster.hp
-                    );
-                    logs.push(log_message);
+                    ));
                 }
 
                 // Si la tourelle fait des AOE, appliquer des dégâts aux monstres proches de la cible

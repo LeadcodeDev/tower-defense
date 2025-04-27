@@ -1,5 +1,6 @@
 use crate::application::engine::maps::MapType;
 use crate::application::engine::maps::forest::ForestMap;
+use crate::domain::entities::tower::UpgradeType;
 use crate::domain::entities::{game::Game, position::Position};
 use crate::domain::entities::{tower::TowerKind, wave::Wave};
 use color_eyre::Result;
@@ -158,8 +159,8 @@ impl App {
         // Actions par défaut
         let actions = vec![
             GameAction::BuildTower,
-            GameAction::RemoveTower,
             GameAction::UpgradeTower,
+            GameAction::RemoveTower,
         ];
 
         // Tours disponibles
@@ -695,21 +696,27 @@ impl App {
                     upgrade_menu.available_upgrades[upgrade_menu.selected_upgrade];
 
                 // Appliquer l'amélioration choisie
-                match upgrade_type {
-                    crate::domain::entities::tower::UpgradeType::AttackSpeed => {
-                        self.game.upgrade_tower_attack_speed(tower_index);
-                    }
-                    crate::domain::entities::tower::UpgradeType::Damage => {
-                        self.game.upgrade_tower_damage(tower_index);
-                    }
-                    crate::domain::entities::tower::UpgradeType::Range => {
-                        self.game.upgrade_tower_range(tower_index);
+                let successful_upgrade = match upgrade_type {
+                    UpgradeType::AttackSpeed => self.game.upgrade_tower_attack_speed(tower_index),
+                    UpgradeType::Damage => self.game.upgrade_tower_damage(tower_index),
+                    UpgradeType::Range => self.game.upgrade_tower_range(tower_index),
+                };
+
+                // Si l'amélioration a réussi, mettre à jour le menu d'amélioration avec les nouvelles données
+                if let Ok(_) = successful_upgrade {
+                    // Vérifier si la tour existe toujours (au cas où)
+                    if tower_index < self.game.towers.len() {
+                        // Rafraîchir le menu d'amélioration avec les nouvelles informations
+                        self.upgrade_tower(tower_index);
+                        // Rester en mode amélioration
+                        return;
                     }
                 }
             }
         }
 
-        // Nettoyer après l'amélioration
+        // Si on arrive ici, c'est qu'il y a eu un problème avec l'amélioration
+        // ou que l'utilisateur a choisi "Annuler", on ferme le menu
         self.upgrade_menu = None;
         self.ui_mode = UiMode::Normal;
     }
