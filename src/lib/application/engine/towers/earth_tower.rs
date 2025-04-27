@@ -2,121 +2,44 @@ use crate::domain::entities::{
     behavior::TowerBehavior,
     element::Element,
     position::Position,
-    tower::{TargetSelection, Tower, TowerBase},
+    tower::{BaseStats, TargetSelection, Tower, TowerKind, TowerStats},
 };
 
-/// Tour de terre basique - dégâts faibles, attaque très rapide
-#[derive(Debug, Clone)]
-pub struct EarthBasicTower {
-    base: TowerBase,
-    upgrade_level: u32,
-}
+pub struct EarthTower;
 
-impl EarthBasicTower {
-    pub fn positioned(position: Position) -> Self {
-        Self {
-            base: TowerBase {
+impl EarthTower {
+    pub fn positionned(position: Position) -> Tower {
+        Tower {
+            stats: TowerStats {
                 position,
-                range: 3.0,
+                range: 2.8,
                 element: Element::Earth,
-                damage: 5.0,
-                attacks_per_second: 4.0,
+                damage: 15.0,
+                attacks_per_second: 0.8,
                 aoe: false,
                 behavior: TowerBehavior::Basic,
                 last_attack: 0.0,
-                target_selection: TargetSelection::Nearest,
+                target_selection: TargetSelection::Strongest,
+                upgrade_level: 0,
+                tower_type: TowerKind::Earth,
+                base_stats: BaseStats {
+                    range: 2.8,
+                    damage: 15.0,
+                    attacks_per_second: 0.8,
+                },
             },
-            upgrade_level: 0,
         }
     }
 }
 
-impl Tower for EarthBasicTower {
-    fn position(&self) -> Position {
-        self.base.position
-    }
+// Données spécifiques à la tour de terre
+pub const EARTH_TOWER_COST: u32 = 90;
+pub const EARTH_TOWER_UPGRADE_COST: u32 = 50;
+pub const EARTH_ATTACK_SPEED_FACTOR: f32 = 1.1;
+pub const EARTH_DAMAGE_FACTOR: f32 = 1.35;
+pub const EARTH_RANGE_BONUS: f32 = 0.3;
 
-    fn range(&self) -> f32 {
-        self.base.range
-    }
-
-    fn get_element(&self) -> Element {
-        self.base.element
-    }
-
-    fn damage(&self) -> f32 {
-        self.base.damage
-    }
-
-    fn attacks_per_second(&self) -> f32 {
-        self.base.attacks_per_second
-    }
-
-    fn is_aoe(&self) -> bool {
-        self.base.aoe
-    }
-
-    fn behavior(&self) -> &TowerBehavior {
-        &self.base.behavior
-    }
-
-    fn attack_damage(&self) -> f32 {
-        self.base.damage
-    }
-
-    fn attack_speed(&self) -> f32 {
-        self.base.attacks_per_second
-    }
-
-    fn last_attack_time(&self) -> f32 {
-        self.base.last_attack
-    }
-
-    fn set_last_attack_time(&mut self, time: f32) {
-        self.base.last_attack = time;
-    }
-
-    fn target_selection(&self) -> TargetSelection {
-        self.base.target_selection.clone()
-    }
-
-    fn upgrade_level(&self) -> u32 {
-        self.upgrade_level
-    }
-
-    fn upgrade_attack_speed(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter la vitesse d'attaque de 25% à chaque amélioration
-        self.base.attacks_per_second *= 1.25;
-        self.upgrade_level += 1;
-        true
-    }
-
-    fn upgrade_damage(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter les dégâts de 20% à chaque amélioration
-        self.base.damage *= 1.2;
-        self.upgrade_level += 1;
-        true
-    }
-
-    fn upgrade_range(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter la portée de 0.4 à chaque amélioration
-        self.base.range += 0.4;
-        self.upgrade_level += 1;
-        true
-    }
-}
+// Synergies pour les tours de terre
+pub const EARTH_DAMAGE_SYNERGY: f32 = 0.8; // Moins chères pour les dégâts
+pub const EARTH_SPEED_SYNERGY: f32 = 1.3; // Plus chères pour la vitesse
+pub const EARTH_RANGE_SYNERGY: f32 = 1.2; // Plus chères pour la portée

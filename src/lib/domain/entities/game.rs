@@ -5,13 +5,16 @@ use std::{
 
 use rand::{Rng, rng};
 
-use crate::application::engine::towers::{BasicTower, FireBasicTower};
+use crate::application::engine::towers::{
+    air_tower::AirTower, basic_tower::BasicTower, earth_tower::EarthTower, fire_tower::FireTower,
+    water_tower::WaterTower,
+};
 
 use super::{
     map::Map,
     monster::Monster,
     position::Position,
-    tower::{Tower, TowerType},
+    tower::{Tower, UpgradeType},
     wave::Wave,
 };
 
@@ -27,7 +30,7 @@ pub struct GameLog {
 pub struct Game {
     pub map: Map,
     pub current_map: usize,
-    pub towers: Vec<TowerType>,
+    pub towers: Vec<Tower>,
     pub waves: VecDeque<Wave>,
     pub current_wave: Option<Wave>,
     pub wave_index: u32,
@@ -48,7 +51,7 @@ impl Game {
     pub fn new(
         map: Map,
         waves: Vec<Wave>,
-        towers: Vec<TowerType>,
+        towers: Vec<Tower>,
         player_life: i32,
         wave_multiplier: f32,
     ) -> Self {
@@ -90,14 +93,24 @@ impl Game {
         }
     }
 
-    pub fn add_tower(&mut self, position: Position) {
-        self.towers
-            .push(TowerType::Basic(BasicTower::positioned(position)));
+    pub fn add_basic_tower(&mut self, position: Position) {
+        self.towers.push(BasicTower::positionned(position));
     }
 
     pub fn add_fire_tower(&mut self, position: Position) {
-        self.towers
-            .push(TowerType::Fire(FireBasicTower::positioned(position)));
+        self.towers.push(FireTower::positionned(position));
+    }
+
+    pub fn add_water_tower(&mut self, position: Position) {
+        self.towers.push(WaterTower::positionned(position));
+    }
+
+    pub fn add_earth_tower(&mut self, position: Position) {
+        self.towers.push(EarthTower::positionned(position));
+    }
+
+    pub fn add_air_tower(&mut self, position: Position) {
+        self.towers.push(AirTower::positionned(position));
     }
 
     pub fn remove_tower(&mut self, position: Position) {
@@ -343,7 +356,8 @@ impl Game {
         }
 
         let tower = &self.towers[tower_index];
-        let upgrade_cost = tower.upgrade_cost();
+        let upgrade_type = UpgradeType::AttackSpeed;
+        let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
 
         if !self.has_enough_money(upgrade_cost) {
             self.add_log(format!(
@@ -376,7 +390,8 @@ impl Game {
         }
 
         let tower = &self.towers[tower_index];
-        let upgrade_cost = tower.upgrade_cost();
+        let upgrade_type = UpgradeType::Damage;
+        let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
 
         if !self.has_enough_money(upgrade_cost) {
             self.add_log(format!(
@@ -406,7 +421,8 @@ impl Game {
         }
 
         let tower = &self.towers[tower_index];
-        let upgrade_cost = tower.upgrade_cost();
+        let upgrade_type = UpgradeType::Range;
+        let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
 
         if !self.has_enough_money(upgrade_cost) {
             self.add_log(format!(

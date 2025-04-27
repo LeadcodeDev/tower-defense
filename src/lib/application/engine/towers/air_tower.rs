@@ -2,121 +2,44 @@ use crate::domain::entities::{
     behavior::TowerBehavior,
     element::Element,
     position::Position,
-    tower::{TargetSelection, Tower, TowerBase},
+    tower::{BaseStats, TargetSelection, Tower, TowerKind, TowerStats},
 };
 
-/// Tour d'air basique - faibles dégâts, zone d'effet, attaque rapide
-#[derive(Debug, Clone)]
-pub struct AirBasicTower {
-    base: TowerBase,
-    upgrade_level: u32,
-}
+pub struct AirTower;
 
-impl AirBasicTower {
-    pub fn positioned(position: Position) -> Self {
-        Self {
-            base: TowerBase {
+impl AirTower {
+    pub fn positionned(position: Position) -> Tower {
+        Tower {
+            stats: TowerStats {
                 position,
-                range: 2.5,
+                range: 4.0,
                 element: Element::Air,
-                damage: 4.0,
-                attacks_per_second: 3.0,
-                aoe: true,
+                damage: 8.0,
+                attacks_per_second: 1.5,
+                aoe: false,
                 behavior: TowerBehavior::Basic,
                 last_attack: 0.0,
-                target_selection: TargetSelection::Nearest,
+                target_selection: TargetSelection::Flying,
+                upgrade_level: 0,
+                tower_type: TowerKind::Air,
+                base_stats: BaseStats {
+                    range: 4.0,
+                    damage: 8.0,
+                    attacks_per_second: 1.5,
+                },
             },
-            upgrade_level: 0,
         }
     }
 }
 
-impl Tower for AirBasicTower {
-    fn position(&self) -> Position {
-        self.base.position
-    }
+// Données spécifiques à la tour d'air
+pub const AIR_TOWER_COST: u32 = 85;
+pub const AIR_TOWER_UPGRADE_COST: u32 = 45;
+pub const AIR_ATTACK_SPEED_FACTOR: f32 = 1.25;
+pub const AIR_DAMAGE_FACTOR: f32 = 1.15;
+pub const AIR_RANGE_BONUS: f32 = 0.5;
 
-    fn range(&self) -> f32 {
-        self.base.range
-    }
-
-    fn get_element(&self) -> Element {
-        self.base.element
-    }
-
-    fn damage(&self) -> f32 {
-        self.base.damage
-    }
-
-    fn attacks_per_second(&self) -> f32 {
-        self.base.attacks_per_second
-    }
-
-    fn is_aoe(&self) -> bool {
-        self.base.aoe
-    }
-
-    fn behavior(&self) -> &TowerBehavior {
-        &self.base.behavior
-    }
-
-    fn attack_damage(&self) -> f32 {
-        self.base.damage
-    }
-
-    fn attack_speed(&self) -> f32 {
-        self.base.attacks_per_second
-    }
-
-    fn last_attack_time(&self) -> f32 {
-        self.base.last_attack
-    }
-
-    fn set_last_attack_time(&mut self, time: f32) {
-        self.base.last_attack = time;
-    }
-
-    fn target_selection(&self) -> TargetSelection {
-        self.base.target_selection.clone()
-    }
-
-    fn upgrade_level(&self) -> u32 {
-        self.upgrade_level
-    }
-
-    fn upgrade_attack_speed(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter la vitesse d'attaque de 15% à chaque amélioration
-        self.base.attacks_per_second *= 1.15;
-        self.upgrade_level += 1;
-        true
-    }
-
-    fn upgrade_damage(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter les dégâts de 25% à chaque amélioration
-        self.base.damage *= 1.25;
-        self.upgrade_level += 1;
-        true
-    }
-
-    fn upgrade_range(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter la portée de 0.5 à chaque amélioration
-        self.base.range += 0.5;
-        self.upgrade_level += 1;
-        true
-    }
-}
+// Synergies pour les tours d'air
+pub const AIR_DAMAGE_SYNERGY: f32 = 1.2; // Plus chères pour les dégâts
+pub const AIR_SPEED_SYNERGY: f32 = 0.8; // Moins chères pour la vitesse
+pub const AIR_RANGE_SYNERGY: f32 = 0.9; // Moins chères pour la portée

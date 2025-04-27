@@ -2,121 +2,44 @@ use crate::domain::entities::{
     behavior::TowerBehavior,
     element::Element,
     position::Position,
-    tower::{TargetSelection, Tower, TowerBase},
+    tower::{BaseStats, TargetSelection, Tower, TowerKind, TowerStats},
 };
 
-/// Tour d'eau basique - dégâts modérés, vitesse d'attaque moyenne
-#[derive(Debug, Clone)]
-pub struct WaterBasicTower {
-    base: TowerBase,
-    upgrade_level: u32,
-}
+pub struct WaterTower;
 
-impl WaterBasicTower {
-    pub fn positioned(position: Position) -> Self {
-        Self {
-            base: TowerBase {
+impl WaterTower {
+    pub fn positionned(position: Position) -> Tower {
+        Tower {
+            stats: TowerStats {
                 position,
                 range: 3.5,
                 element: Element::Water,
-                damage: 10.0,
+                damage: 12.0,
                 attacks_per_second: 1.0,
-                aoe: false,
+                aoe: true,
                 behavior: TowerBehavior::Basic,
                 last_attack: 0.0,
-                target_selection: TargetSelection::Nearest,
+                target_selection: TargetSelection::All,
+                upgrade_level: 0,
+                tower_type: TowerKind::Water,
+                base_stats: BaseStats {
+                    range: 3.5,
+                    damage: 12.0,
+                    attacks_per_second: 1.0,
+                },
             },
-            upgrade_level: 0,
         }
     }
 }
 
-impl Tower for WaterBasicTower {
-    fn position(&self) -> Position {
-        self.base.position
-    }
+// Données spécifiques à la tour d'eau
+pub const WATER_TOWER_COST: u32 = 95;
+pub const WATER_TOWER_UPGRADE_COST: u32 = 55;
+pub const WATER_ATTACK_SPEED_FACTOR: f32 = 1.08;
+pub const WATER_DAMAGE_FACTOR: f32 = 1.25;
+pub const WATER_RANGE_BONUS: f32 = 0.35;
 
-    fn range(&self) -> f32 {
-        self.base.range
-    }
-
-    fn get_element(&self) -> Element {
-        self.base.element
-    }
-
-    fn damage(&self) -> f32 {
-        self.base.damage
-    }
-
-    fn attacks_per_second(&self) -> f32 {
-        self.base.attacks_per_second
-    }
-
-    fn is_aoe(&self) -> bool {
-        self.base.aoe
-    }
-
-    fn behavior(&self) -> &TowerBehavior {
-        &self.base.behavior
-    }
-
-    fn attack_damage(&self) -> f32 {
-        self.base.damage
-    }
-
-    fn attack_speed(&self) -> f32 {
-        self.base.attacks_per_second
-    }
-
-    fn last_attack_time(&self) -> f32 {
-        self.base.last_attack
-    }
-
-    fn set_last_attack_time(&mut self, time: f32) {
-        self.base.last_attack = time;
-    }
-
-    fn target_selection(&self) -> TargetSelection {
-        self.base.target_selection.clone()
-    }
-
-    fn upgrade_level(&self) -> u32 {
-        self.upgrade_level
-    }
-
-    fn upgrade_attack_speed(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter la vitesse d'attaque de 18% à chaque amélioration
-        self.base.attacks_per_second *= 1.18;
-        self.upgrade_level += 1;
-        true
-    }
-
-    fn upgrade_damage(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter les dégâts de 22% à chaque amélioration
-        self.base.damage *= 1.22;
-        self.upgrade_level += 1;
-        true
-    }
-
-    fn upgrade_range(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter la portée de 0.6 à chaque amélioration
-        self.base.range += 0.6;
-        self.upgrade_level += 1;
-        true
-    }
-}
+// Synergies pour les tours d'eau
+pub const WATER_DAMAGE_SYNERGY: f32 = 1.15; // Plus chères pour les dégâts
+pub const WATER_SPEED_SYNERGY: f32 = 1.0; // Coût standard pour la vitesse
+pub const WATER_RANGE_SYNERGY: f32 = 0.95; // Légèrement moins chères pour la portée

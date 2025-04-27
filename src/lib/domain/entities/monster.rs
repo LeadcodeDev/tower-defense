@@ -25,6 +25,10 @@ impl Resistances {
             Element::Water => self.water,
             Element::Earth => self.earth,
             Element::Air => self.air,
+            Element::Neutral => 0.0,
+            Element::Lightning => 0.0,
+            Element::Ice => 0.0,
+            Element::Poison => 0.0,
         }
     }
 

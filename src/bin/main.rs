@@ -1,5 +1,5 @@
 use rust_tower::{
-    application::engine::maps::forest::forest_map,
+    application::engine::maps::forest::ForestMap,
     domain::entities::{game::Game, wave::Wave},
     infrastructure::ui::{
         app::{App, View},
@@ -30,7 +30,7 @@ fn main() -> color_eyre::Result<()> {
 }
 
 fn create_game() -> Game {
-    let map = forest_map();
+    let map = ForestMap::new();
     let wave = Wave::new(None);
 
     Game::new(map, vec![wave], vec![], 10, 1.0)

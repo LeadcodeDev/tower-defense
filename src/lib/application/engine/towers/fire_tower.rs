@@ -1,118 +1,45 @@
-use crate::domain::entities::tower::{TargetSelection, Tower, TowerBase};
-use crate::domain::entities::{behavior::TowerBehavior, element::Element, position::Position};
+use crate::domain::entities::{
+    behavior::TowerBehavior,
+    element::Element,
+    position::Position,
+    tower::{BaseStats, TargetSelection, Tower, TowerKind, TowerStats},
+};
 
-/// Tour de feu basique - dégâts modérés, attaque rapide
-#[derive(Debug, Clone)]
-pub struct FireBasicTower {
-    base: TowerBase,
-    upgrade_level: u32,
-}
+pub struct FireTower;
 
-impl FireBasicTower {
-    pub fn positioned(position: Position) -> Self {
-        Self {
-            base: TowerBase {
+impl FireTower {
+    pub fn positionned(position: Position) -> Tower {
+        Tower {
+            stats: TowerStats {
                 position,
-                range: 4.0,
+                range: 3.0,
                 element: Element::Fire,
-                damage: 50.0,
-                attacks_per_second: 2.0,
-                aoe: true,
+                damage: 12.0,
+                attacks_per_second: 1.0,
+                aoe: false,
                 behavior: TowerBehavior::Basic,
                 last_attack: 0.0,
-                target_selection: TargetSelection::Nearest,
+                target_selection: TargetSelection::All,
+                upgrade_level: 0,
+                tower_type: TowerKind::Fire,
+                base_stats: BaseStats {
+                    range: 3.0,
+                    damage: 12.0,
+                    attacks_per_second: 1.0,
+                },
             },
-            upgrade_level: 0,
         }
     }
 }
 
-impl Tower for FireBasicTower {
-    fn position(&self) -> Position {
-        self.base.position
-    }
+// Données spécifiques à la tour de feu
+pub const FIRE_TOWER_COST: u32 = 90;
+pub const FIRE_TOWER_UPGRADE_COST: u32 = 50;
+pub const FIRE_ATTACK_SPEED_FACTOR: f32 = 1.25;
+pub const FIRE_DAMAGE_FACTOR: f32 = 1.2;
+pub const FIRE_RANGE_BONUS: f32 = 0.3;
 
-    fn range(&self) -> f32 {
-        self.base.range
-    }
-
-    fn get_element(&self) -> Element {
-        self.base.element
-    }
-
-    fn damage(&self) -> f32 {
-        self.base.damage
-    }
-
-    fn attacks_per_second(&self) -> f32 {
-        self.base.attacks_per_second
-    }
-
-    fn is_aoe(&self) -> bool {
-        self.base.aoe
-    }
-
-    fn behavior(&self) -> &TowerBehavior {
-        &self.base.behavior
-    }
-
-    fn attack_damage(&self) -> f32 {
-        self.base.damage
-    }
-
-    fn attack_speed(&self) -> f32 {
-        self.base.attacks_per_second
-    }
-
-    fn last_attack_time(&self) -> f32 {
-        self.base.last_attack
-    }
-
-    fn set_last_attack_time(&mut self, time: f32) {
-        self.base.last_attack = time;
-    }
-
-    fn target_selection(&self) -> TargetSelection {
-        self.base.target_selection.clone()
-    }
-
-    fn upgrade_level(&self) -> u32 {
-        self.upgrade_level
-    }
-
-    fn upgrade_attack_speed(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter la vitesse d'attaque de 15% à chaque amélioration
-        self.base.attacks_per_second *= 1.15;
-        self.upgrade_level += 1;
-        true
-    }
-
-    fn upgrade_damage(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter les dégâts de 30% à chaque amélioration
-        self.base.damage *= 1.3;
-        self.upgrade_level += 1;
-        true
-    }
-
-    fn upgrade_range(&mut self) -> bool {
-        // Limiter le niveau d'amélioration à 5
-        if self.upgrade_level >= 5 {
-            return false;
-        }
-
-        // Augmenter la portée de 0.75 à chaque amélioration
-        self.base.range += 0.75;
-        self.upgrade_level += 1;
-        true
-    }
-}
+// Synergies pour les tours de feu
+pub const FIRE_DAMAGE_SYNERGY: f32 = 1.3; // Plus chères pour les dégâts
+pub const FIRE_SPEED_SYNERGY: f32 = 1.15; // Légèrement plus chères pour la vitesse
+pub const FIRE_RANGE_SYNERGY: f32 = 1.0; // Coût standard pour la portée

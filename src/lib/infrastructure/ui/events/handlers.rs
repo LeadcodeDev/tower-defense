@@ -1,5 +1,3 @@
-use ratatui::crossterm::event::KeyCode;
-
 use crate::infrastructure::ui::app::{App, UiMode, View};
 
 pub fn handle_key_up(app: &mut App) {

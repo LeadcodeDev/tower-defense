@@ -1,9 +1,6 @@
-use crate::application::engine::{
-    maps::forest::forest_map,
-    towers::{BasicTower, FireBasicTower},
-};
+use crate::application::engine::maps::forest::ForestMap;
 use crate::domain::entities::{game::Game, position::Position};
-use crate::domain::entities::{tower::TowerType as GameTowerType, wave::Wave};
+use crate::domain::entities::{tower::TowerKind, wave::Wave};
 use color_eyre::Result;
 use crossterm::event::KeyCode;
 use rand::{rng, seq::IndexedRandom};
@@ -49,6 +46,17 @@ impl TowerType {
             TowerType::Air => 100,
         }
     }
+
+    /// Convertir en TowerKind
+    pub fn to_tower_kind(&self) -> TowerKind {
+        match *self {
+            TowerType::Basic => TowerKind::Basic,
+            TowerType::Fire => TowerKind::Fire,
+            TowerType::Water => TowerKind::Water,
+            TowerType::Earth => TowerKind::Earth,
+            TowerType::Air => TowerKind::Air,
+        }
+    }
 }
 
 /// Modes d'interface utilisateur
@@ -60,19 +68,11 @@ pub enum UiMode {
     TowerUpgrade,   // Mode d'amélioration de tour
 }
 
-/// Types d'améliorations disponibles
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UpgradeType {
-    AttackSpeed,
-    Damage,
-    Range,
-}
-
 /// Structure pour gérer le menu des améliorations
 pub struct UpgradeMenu {
     pub tower_index: usize,
     pub selected_upgrade: usize,
-    pub available_upgrades: Vec<(UpgradeType, &'static str)>,
+    pub available_upgrades: Vec<(crate::domain::entities::tower::UpgradeType, &'static str)>,
 }
 
 impl UpgradeMenu {
@@ -81,9 +81,15 @@ impl UpgradeMenu {
             tower_index,
             selected_upgrade: 0,
             available_upgrades: vec![
-                (UpgradeType::AttackSpeed, "Vitesse d'attaque"),
-                (UpgradeType::Damage, "Dégâts"),
-                (UpgradeType::Range, "Portée"),
+                (
+                    crate::domain::entities::tower::UpgradeType::AttackSpeed,
+                    "Vitesse d'attaque",
+                ),
+                (
+                    crate::domain::entities::tower::UpgradeType::Damage,
+                    "Dégâts",
+                ),
+                (crate::domain::entities::tower::UpgradeType::Range, "Portée"),
             ],
         }
     }
@@ -462,9 +468,7 @@ impl App {
 
     /// Crée un nouveau jeu (réinitialise le jeu actuel)
     pub fn reset_game(&mut self) {
-        let map = forest_map();
-
-        // Nombre de monstres à générer aléatoirement
+        let map = ForestMap::new();
         let n = 10;
 
         // Sélection aléatoire de N monstres parmi le vecteur
@@ -477,14 +481,8 @@ impl App {
 
         let wave = Wave::new(Some(selected_monsters));
 
-        let towers = vec![
-            GameTowerType::Basic(BasicTower::positioned(Position::new(5, 2))),
-            GameTowerType::Fire(FireBasicTower::positioned(Position::new(6, 6))),
-            GameTowerType::Fire(FireBasicTower::positioned(Position::new(14, 6))),
-        ];
-
         // Remplacer le jeu actuel par un nouveau
-        self.game = Game::new(map, vec![wave], towers, 10, 1.0);
+        self.game = Game::new(map, vec![wave], vec![], 10, 1.0);
 
         // Réinitialiser les états d'interface
         self.ui_mode = UiMode::Normal;
@@ -496,7 +494,7 @@ impl App {
     pub fn add_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Basic.cost()) {
             if self.game.spend_money(TowerType::Basic.cost()) {
-                self.game.add_tower(position);
+                self.game.add_basic_tower(position);
             }
         }
     }
@@ -512,11 +510,7 @@ impl App {
     pub fn add_water_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Water.cost()) {
             if self.game.spend_money(TowerType::Water.cost()) {
-                // Implémenter la création de tour d'eau
-                self.game.add_log(format!(
-                    "Tour d'eau placée en ({},{})",
-                    position.x, position.y
-                ));
+                self.game.add_water_tower(position);
             }
         }
     }
@@ -524,11 +518,7 @@ impl App {
     pub fn add_earth_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Earth.cost()) {
             if self.game.spend_money(TowerType::Earth.cost()) {
-                // Implémenter la création de tour de terre
-                self.game.add_log(format!(
-                    "Tour de terre placée en ({},{})",
-                    position.x, position.y
-                ));
+                self.game.add_earth_tower(position);
             }
         }
     }
@@ -536,11 +526,7 @@ impl App {
     pub fn add_air_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Air.cost()) {
             if self.game.spend_money(TowerType::Air.cost()) {
-                // Implémenter la création de tour d'air
-                self.game.add_log(format!(
-                    "Tour d'air placée en ({},{})",
-                    position.x, position.y
-                ));
+                self.game.add_air_tower(position);
             }
         }
     }
@@ -560,14 +546,28 @@ impl App {
         self.upgrade_menu = Some(UpgradeMenu::new(index));
 
         // Afficher les informations sur la tour
-        let tower_type = self.game.towers[index].tower_type_name();
-        let tower_level = self.game.towers[index].upgrade_level();
-        let upgrade_cost = self.game.towers[index].upgrade_cost();
+        let tower = &self.game.towers[index];
+        let tower_type = tower.tower_type_name();
+        let tower_level = tower.upgrade_level();
+
+        // Récupérer les coûts pour chaque type d'amélioration
+        let cost_attack_speed = tower
+            .upgrade_cost_for_attribute(crate::domain::entities::tower::UpgradeType::AttackSpeed);
+        let cost_damage =
+            tower.upgrade_cost_for_attribute(crate::domain::entities::tower::UpgradeType::Damage);
+        let cost_range =
+            tower.upgrade_cost_for_attribute(crate::domain::entities::tower::UpgradeType::Range);
 
         self.game
             .add_log(format!("🔍 Tour {} (Niveau {})", tower_type, tower_level));
+        self.game.add_log(format!(
+            "💰 Vitesse d'attaque: {} pièces",
+            cost_attack_speed
+        ));
         self.game
-            .add_log(format!("💰 Coût d'amélioration: {} pièces", upgrade_cost));
+            .add_log(format!("💰 Dégâts: {} pièces", cost_damage));
+        self.game
+            .add_log(format!("💰 Portée: {} pièces", cost_range));
 
         // Passer en mode amélioration spécifique
         self.ui_mode = UiMode::TowerUpgrade;
@@ -583,13 +583,13 @@ impl App {
 
                 // Appliquer l'amélioration choisie
                 match upgrade_type {
-                    UpgradeType::AttackSpeed => {
+                    crate::domain::entities::tower::UpgradeType::AttackSpeed => {
                         self.game.upgrade_tower_attack_speed(tower_index);
                     }
-                    UpgradeType::Damage => {
+                    crate::domain::entities::tower::UpgradeType::Damage => {
                         self.game.upgrade_tower_damage(tower_index);
                     }
-                    UpgradeType::Range => {
+                    crate::domain::entities::tower::UpgradeType::Range => {
                         self.game.upgrade_tower_range(tower_index);
                     }
                 }

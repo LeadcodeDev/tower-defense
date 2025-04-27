@@ -6,7 +6,10 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
-use crate::infrastructure::ui::app::{App, GameAction, TowerType, UiMode, View};
+use crate::{
+    domain::entities::tower::TowerKind,
+    infrastructure::ui::app::{App, GameAction, TowerType, UiMode, View},
+};
 
 /// Gère le rendu de l'interface utilisateur
 pub fn render(app: &App, frame: &mut Frame) {
@@ -129,12 +132,15 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
     for (i, tower) in game.towers.iter().enumerate() {
         let pos = tower.position();
         if pos.x < area.width as i32 && pos.y < area.height as i32 {
-            let tower_char = match tower {
-                crate::domain::entities::tower::TowerType::Basic(_) => 'B',
-                crate::domain::entities::tower::TowerType::Fire(_) => 'F',
-                crate::domain::entities::tower::TowerType::Water(_) => 'W',
-                crate::domain::entities::tower::TowerType::Earth(_) => 'E',
-                crate::domain::entities::tower::TowerType::Air(_) => 'A',
+            let tower_char = match tower.stats.tower_type {
+                TowerKind::Basic => 'B',
+                TowerKind::Fire => 'F',
+                TowerKind::Water => 'W',
+                TowerKind::Earth => 'E',
+                TowerKind::Air => 'A',
+                TowerKind::Lightning => 'L',
+                TowerKind::Ice => 'I',
+                TowerKind::Poison => 'P',
             };
 
             map_chars[pos.y as usize][pos.x as usize] = tower_char;
@@ -478,7 +484,8 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                     for (i, (upgrade_type, description)) in
                         upgrade_menu.available_upgrades.iter().enumerate()
                     {
-                        let text = format!("{}", description);
+                        let cost = tower.upgrade_cost_for_attribute(*upgrade_type);
+                        let text = format!("{} - 💰 {}", description, cost);
 
                         // Mettre en surbrillance l'option sélectionnée
                         let style = if i == upgrade_menu.selected_upgrade {

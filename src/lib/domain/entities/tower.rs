@@ -1,5 +1,3 @@
-use crate::application::engine::towers::{BasicTower, FireBasicTower};
-
 use super::{
     behavior::TowerBehavior, element::Element, monster::Monster, position::Position, wave::Wave,
 };
@@ -9,6 +7,8 @@ use std::fmt::Debug;
 /// Stratégie de sélection de cible pour les tourelles
 #[derive(Debug, Clone, Copy)]
 pub enum TargetSelection {
+    /// Cible les monstres volants
+    Flying,
     /// Cible le monstre le plus proche
     Nearest,
     /// Cible le monstre le plus éloigné
@@ -29,7 +29,7 @@ impl Default for TargetSelection {
 
 /// Structure de base pour toutes les tourelles
 #[derive(Debug, Clone)]
-pub struct TowerBase {
+pub struct TowerStats {
     /// Position sur la carte
     pub position: Position,
     /// Portée de la tourelle
@@ -48,126 +48,169 @@ pub struct TowerBase {
     pub behavior: TowerBehavior,
     /// Stratégie de sélection de cible
     pub target_selection: TargetSelection,
+    /// Niveau d'amélioration
+    pub upgrade_level: u32,
+    /// Type de la tour
+    pub tower_type: TowerKind,
+    /// Statistiques de base (pour calculer les améliorations)
+    pub base_stats: BaseStats,
 }
 
-/// Types de tourelles disponibles
-#[derive(Debug)]
-pub enum TowerType {
-    /// Tourelle de base
-    Basic(crate::application::engine::towers::basic_tower::BasicTower),
-    /// Tourelle de feu
-    Fire(crate::application::engine::towers::fire_tower::FireBasicTower),
-    /// Tourelle d'eau
-    Water(crate::application::engine::towers::water_tower::WaterBasicTower),
-    /// Tourelle de terre
-    Earth(crate::application::engine::towers::earth_tower::EarthBasicTower),
-    /// Tourelle d'air
-    Air(crate::application::engine::towers::air_tower::AirBasicTower),
+#[derive(Debug, Clone)]
+pub struct BaseStats {
+    pub range: f32,
+    pub damage: f32,
+    pub attacks_per_second: f32,
 }
 
-impl TowerType {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TowerKind {
+    Basic,
+    Fire,
+    Water,
+    Earth,
+    Air,
+    Lightning,
+    Ice,
+    Poison,
+}
+
+/// Structure uniforme pour toutes les tourelles
+#[derive(Debug, Clone)]
+pub struct Tower {
+    pub stats: TowerStats,
+}
+
+impl Tower {
     pub fn position(&self) -> Position {
-        match self {
-            TowerType::Basic(t) => t.position(),
-            TowerType::Fire(t) => t.position(),
-            TowerType::Water(t) => t.position(),
-            TowerType::Earth(t) => t.position(),
-            TowerType::Air(t) => t.position(),
-        }
+        self.stats.position
     }
 
     pub fn range(&self) -> f32 {
-        match self {
-            TowerType::Basic(t) => t.range(),
-            TowerType::Fire(t) => t.range(),
-            TowerType::Water(t) => t.range(),
-            TowerType::Earth(t) => t.range(),
-            TowerType::Air(t) => t.range(),
-        }
+        self.stats.range
     }
 
-    pub fn can_shoot(&self, current_time: f32) -> bool {
-        match self {
-            TowerType::Basic(t) => t.can_shoot(current_time),
-            TowerType::Fire(t) => t.can_shoot(current_time),
-            TowerType::Water(t) => t.can_shoot(current_time),
-            TowerType::Earth(t) => t.can_shoot(current_time),
-            TowerType::Air(t) => t.can_shoot(current_time),
-        }
+    pub fn element(&self) -> Element {
+        self.stats.element
     }
 
-    pub fn shoot(&mut self, wave: &mut Wave, current_time: f32) -> Vec<String> {
-        match self {
-            TowerType::Basic(t) => t.shoot(wave, current_time),
-            TowerType::Fire(t) => t.shoot(wave, current_time),
-            TowerType::Water(t) => t.shoot(wave, current_time),
-            TowerType::Earth(t) => t.shoot(wave, current_time),
-            TowerType::Air(t) => t.shoot(wave, current_time),
-        }
+    pub fn damage(&self) -> f32 {
+        self.stats.damage
+    }
+
+    pub fn attacks_per_second(&self) -> f32 {
+        self.stats.attacks_per_second
+    }
+
+    pub fn is_aoe(&self) -> bool {
+        self.stats.aoe
+    }
+
+    pub fn behavior(&self) -> &TowerBehavior {
+        &self.stats.behavior
+    }
+
+    pub fn last_attack_time(&self) -> f32 {
+        self.stats.last_attack
     }
 
     pub fn set_last_attack_time(&mut self, time: f32) {
-        match self {
-            TowerType::Basic(t) => t.set_last_attack_time(time),
-            TowerType::Fire(t) => t.set_last_attack_time(time),
-            TowerType::Water(t) => t.set_last_attack_time(time),
-            TowerType::Earth(t) => t.set_last_attack_time(time),
-            TowerType::Air(t) => t.set_last_attack_time(time),
-        }
+        self.stats.last_attack = time;
     }
 
-    /// Retourne le niveau d'amélioration de la tour
+    pub fn target_selection(&self) -> TargetSelection {
+        self.stats.target_selection
+    }
+
     pub fn upgrade_level(&self) -> u32 {
-        match self {
-            TowerType::Basic(t) => t.upgrade_level(),
-            TowerType::Fire(t) => t.upgrade_level(),
-            TowerType::Water(t) => t.upgrade_level(),
-            TowerType::Earth(t) => t.upgrade_level(),
-            TowerType::Air(t) => t.upgrade_level(),
-        }
+        self.stats.upgrade_level
     }
 
-    /// Améliore la vitesse d'attaque de la tour
+    pub fn can_shoot(&self, current_time: f32) -> bool {
+        let time_since_last_attack = current_time - self.last_attack_time();
+        time_since_last_attack >= 1.0 / self.attacks_per_second()
+    }
+
     pub fn upgrade_attack_speed(&mut self) -> bool {
-        match self {
-            TowerType::Basic(t) => t.upgrade_attack_speed(),
-            TowerType::Fire(t) => t.upgrade_attack_speed(),
-            TowerType::Water(t) => t.upgrade_attack_speed(),
-            TowerType::Earth(t) => t.upgrade_attack_speed(),
-            TowerType::Air(t) => t.upgrade_attack_speed(),
+        // Limiter le niveau d'amélioration à 5
+        if self.stats.upgrade_level >= 5 {
+            return false;
         }
+
+        // Facteurs d'amélioration pour chaque type de tour
+        let factor = match self.stats.tower_type {
+            TowerKind::Basic => 1.2,
+            TowerKind::Fire => 1.15,
+            TowerKind::Water => 1.18,
+            TowerKind::Earth => 1.25,
+            TowerKind::Air => 1.15,
+            TowerKind::Lightning => 1.15,
+            TowerKind::Ice => 1.15,
+            TowerKind::Poison => 1.15,
+        };
+
+        self.stats.attacks_per_second *= factor;
+        self.stats.upgrade_level += 1;
+        true
     }
 
-    /// Améliore les dégâts de la tour
     pub fn upgrade_damage(&mut self) -> bool {
-        match self {
-            TowerType::Basic(t) => t.upgrade_damage(),
-            TowerType::Fire(t) => t.upgrade_damage(),
-            TowerType::Water(t) => t.upgrade_damage(),
-            TowerType::Earth(t) => t.upgrade_damage(),
-            TowerType::Air(t) => t.upgrade_damage(),
+        // Limiter le niveau d'amélioration à 5
+        if self.stats.upgrade_level >= 5 {
+            return false;
         }
+
+        // Facteurs d'amélioration pour chaque type de tour
+        let factor = match self.stats.tower_type {
+            TowerKind::Basic => 1.25,
+            TowerKind::Fire => 1.3,
+            TowerKind::Water => 1.22,
+            TowerKind::Earth => 1.2,
+            TowerKind::Air => 1.25,
+            TowerKind::Lightning => 1.3,
+            TowerKind::Ice => 1.25,
+            TowerKind::Poison => 1.25,
+        };
+
+        self.stats.damage *= factor;
+        self.stats.upgrade_level += 1;
+        true
     }
 
-    /// Améliore la portée de la tour
     pub fn upgrade_range(&mut self) -> bool {
-        match self {
-            TowerType::Basic(t) => t.upgrade_range(),
-            TowerType::Fire(t) => t.upgrade_range(),
-            TowerType::Water(t) => t.upgrade_range(),
-            TowerType::Earth(t) => t.upgrade_range(),
-            TowerType::Air(t) => t.upgrade_range(),
+        // Limiter le niveau d'amélioration à 5
+        if self.stats.upgrade_level >= 5 {
+            return false;
         }
+
+        // Bonus de portée pour chaque type de tour
+        let bonus = match self.stats.tower_type {
+            TowerKind::Basic => 0.5,
+            TowerKind::Fire => 0.75,
+            TowerKind::Water => 0.6,
+            TowerKind::Earth => 0.4,
+            TowerKind::Air => 0.5,
+            TowerKind::Lightning => 0.75,
+            TowerKind::Ice => 0.6,
+            TowerKind::Poison => 0.5,
+        };
+
+        self.stats.range += bonus;
+        self.stats.upgrade_level += 1;
+        true
     }
 
     /// Retourne le coût d'amélioration en fonction du niveau actuel
     pub fn upgrade_cost(&self) -> u32 {
-        let base_cost = match self {
-            TowerType::Basic(_) => 25,
-            TowerType::Fire(_) => 40,
-            TowerType::Water(_) => 40,
-            TowerType::Earth(_) => 50,
-            TowerType::Air(_) => 50,
+        let base_cost = match self.stats.tower_type {
+            TowerKind::Basic => 25,
+            TowerKind::Fire => 40,
+            TowerKind::Water => 40,
+            TowerKind::Earth => 50,
+            TowerKind::Air => 50,
+            TowerKind::Lightning => 50,
+            TowerKind::Ice => 50,
+            TowerKind::Poison => 50,
         };
 
         // Algorithme de croissance exponentielle avec base linéaire
@@ -178,41 +221,82 @@ impl TowerType {
         (base_cost as f32 * exponential_factor + linear_component as f32).round() as u32
     }
 
+    /// Retourne le coût d'amélioration spécifique à une caractéristique
+    pub fn upgrade_cost_for_attribute(&self, upgrade_type: UpgradeType) -> u32 {
+        let base_cost = match self.stats.tower_type {
+            TowerKind::Basic => 30,
+            TowerKind::Fire => 45,
+            TowerKind::Water => 40,
+            TowerKind::Earth => 55,
+            TowerKind::Air => 50,
+            TowerKind::Lightning => 50,
+            TowerKind::Ice => 50,
+            TowerKind::Poison => 50,
+        };
+
+        let level = self.upgrade_level();
+
+        // Coût de base avec croissance exponentielle
+        let base = (base_cost as f32 * 1.3_f32.powi(level as i32)).round() as u32;
+
+        // Facteur de synergie basé sur l'élément et la caractéristique
+        let synergy_factor = match self.stats.tower_type {
+            TowerKind::Basic => 1.0, // Pas de synergie spéciale
+            TowerKind::Fire => match upgrade_type {
+                UpgradeType::Damage => 1.2, // Les tours de feu sont meilleures en dégâts
+                UpgradeType::AttackSpeed => 0.9, // Un peu moins chères pour la vitesse
+                UpgradeType::Range => 1.1,  // Standard pour la portée
+            },
+            TowerKind::Water => match upgrade_type {
+                UpgradeType::Damage => 0.9,      // Moins chères pour les dégâts
+                UpgradeType::AttackSpeed => 1.0, // Standard pour la vitesse
+                UpgradeType::Range => 1.2,       // Meilleures en portée
+            },
+            TowerKind::Earth => match upgrade_type {
+                UpgradeType::Damage => 1.1,      // Un peu meilleures en dégâts
+                UpgradeType::AttackSpeed => 1.2, // Meilleures en vitesse d'attaque
+                UpgradeType::Range => 0.9,       // Moins chères pour la portée
+            },
+            TowerKind::Air => match upgrade_type {
+                UpgradeType::Damage => 1.0,      // Standard pour les dégâts
+                UpgradeType::AttackSpeed => 1.3, // Bien meilleures en vitesse
+                UpgradeType::Range => 0.8,       // Moins chères pour la portée
+            },
+            TowerKind::Lightning => match upgrade_type {
+                UpgradeType::Damage => 1.2,
+                UpgradeType::AttackSpeed => 0.9,
+                UpgradeType::Range => 1.1,
+            },
+            TowerKind::Ice => match upgrade_type {
+                UpgradeType::Damage => 1.1,
+                UpgradeType::AttackSpeed => 1.2,
+                UpgradeType::Range => 0.9,
+            },
+            TowerKind::Poison => match upgrade_type {
+                UpgradeType::Damage => 1.0,
+                UpgradeType::AttackSpeed => 1.3,
+                UpgradeType::Range => 0.8,
+            },
+        };
+
+        (base as f32 * synergy_factor).round() as u32
+    }
+
     /// Retourne le type de la tour sous forme de chaîne
     pub fn tower_type_name(&self) -> &str {
-        match self {
-            TowerType::Basic(_) => "Basique",
-            TowerType::Fire(_) => "Feu",
-            TowerType::Water(_) => "Eau",
-            TowerType::Earth(_) => "Terre",
-            TowerType::Air(_) => "Air",
+        match self.stats.tower_type {
+            TowerKind::Basic => "Basique",
+            TowerKind::Fire => "Feu",
+            TowerKind::Water => "Eau",
+            TowerKind::Earth => "Terre",
+            TowerKind::Air => "Air",
+            TowerKind::Lightning => "Éclair",
+            TowerKind::Ice => "Glace",
+            TowerKind::Poison => "Poison",
         }
     }
-}
 
-/// Interface pour toutes les tourelles
-pub trait Tower {
-    fn position(&self) -> Position;
-    fn range(&self) -> f32;
-    fn attack_damage(&self) -> f32;
-    fn attack_speed(&self) -> f32;
-    fn last_attack_time(&self) -> f32;
-    fn set_last_attack_time(&mut self, time: f32);
-    fn target_selection(&self) -> TargetSelection;
-
-    // Méthodes additionnelles nécessaires pour l'implementation existante
-    fn get_element(&self) -> Element;
-    fn damage(&self) -> f32;
-    fn attacks_per_second(&self) -> f32;
-    fn is_aoe(&self) -> bool;
-    fn behavior(&self) -> &TowerBehavior;
-
-    fn can_shoot(&self, current_time: f32) -> bool {
-        let time_since_last_attack = current_time - self.last_attack_time();
-        time_since_last_attack >= 1.0 / self.attack_speed()
-    }
-
-    fn shoot(&mut self, wave: &mut Wave, current_time: f32) -> Vec<String> {
+    pub fn shoot(&mut self, wave: &mut Wave, current_time: f32) -> Vec<String> {
         let mut primary_targets = Vec::new();
         let mut logs = Vec::new();
 
@@ -254,12 +338,12 @@ pub trait Tower {
 
                 // Appliquer les dégâts à la cible primaire d'abord
                 if let Some(monster) = wave.monsters.get_mut(target_idx) {
-                    let damage = self.attack_damage();
+                    let damage = self.damage();
                     monster.hp -= damage;
 
                     let log_message = format!(
                         "🏹 Tourelle {:?} attaque! -{:.1} HP sur {}. HP restants: {:.1}",
-                        self.get_element(),
+                        self.element(),
                         damage,
                         monster.name,
                         monster.hp
@@ -284,7 +368,7 @@ pub trait Tower {
 
                         // Si le monstre est dans le rayon de l'AOE
                         if distance <= aoe_radius {
-                            let aoe_damage = self.attack_damage() * 0.5; // 50% des dégâts pour l'AOE
+                            let aoe_damage = self.damage() * 0.5; // 50% des dégâts pour l'AOE
                             monster.hp -= aoe_damage;
 
                             let log_message = format!(
@@ -332,10 +416,12 @@ pub trait Tower {
 
         distance <= self.range()
     }
+}
 
-    // Nouvelles méthodes pour les améliorations
-    fn upgrade_level(&self) -> u32;
-    fn upgrade_attack_speed(&mut self) -> bool;
-    fn upgrade_damage(&mut self) -> bool;
-    fn upgrade_range(&mut self) -> bool;
+/// Types d'améliorations disponibles
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UpgradeType {
+    AttackSpeed,
+    Damage,
+    Range,
 }
