@@ -7,7 +7,6 @@ use rand::{Rng, rng};
 
 use crate::application::engine::towers::{
     air_tower::AirTower, basic_tower::BasicTower, earth_tower::EarthTower, fire_tower::FireTower,
-    water_tower::WaterTower,
 };
 
 use super::{
@@ -101,9 +100,7 @@ impl Game {
         self.towers.push(FireTower::positionned(position));
     }
 
-    pub fn add_water_tower(&mut self, position: Position) {
-        self.towers.push(WaterTower::positionned(position));
-    }
+    pub fn add_water_tower(&mut self, position: Position) {}
 
     pub fn add_earth_tower(&mut self, position: Position) {
         self.towers.push(EarthTower::positionned(position));
@@ -117,7 +114,7 @@ impl Game {
         if let Some(index) = self
             .towers
             .iter()
-            .position(|t| t.position().x == position.x && t.position().y == position.y)
+            .position(|t| t.position.x == position.x && t.position.y == position.y)
         {
             self.towers.remove(index);
         }

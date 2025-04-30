@@ -3,8 +3,8 @@ use crate::domain::entities::{
     element::Element,
     position::Position,
     tower::{
-        BaseStats, TargetSelection, Tower, TowerKind, TowerStats, TowerUpgradeElement,
-        TowerUpgradeElementUnit, TowerUpgrades,
+        BaseStats, TargetSelection, Tower, TowerKind, TowerMeta, TowerStatDamageElement,
+        TowerStatElement, TowerStats, TowerUpgradeElement, TowerUpgradeElementUnit, TowerUpgrades,
     },
 };
 
@@ -13,43 +13,27 @@ pub struct AirTower;
 impl AirTower {
     pub fn positionned(position: Position) -> Tower {
         Tower {
-            name: "Air Tower".to_string(),
-            upgrades: TowerUpgrades::new(
-                50,
-                TowerUpgradeElement::new(4.0, 1.0, TowerUpgradeElementUnit::Unit),
-                TowerUpgradeElement::new(8.0, 1.0, TowerUpgradeElementUnit::Unit),
-                TowerUpgradeElement::new(1.5, 1.0, TowerUpgradeElementUnit::Unit),
-            ),
+            name: "Fire Tower".to_string(),
+            level: 1,
+            position,
+            last_attack: 0.0,
             stats: TowerStats {
-                position,
-                range: 4.0,
-                element: Element::Air,
-                damage: 8.0,
-                attacks_per_second: 1.5,
-                aoe: false,
-                behavior: TowerBehavior::Basic,
-                last_attack: 0.0,
-                target_selection: TargetSelection::Flying,
-                upgrade_level: 0,
-                tower_type: TowerKind::Air,
-                base_stats: BaseStats {
-                    range: 4.0,
-                    damage: 8.0,
-                    attacks_per_second: 1.5,
-                },
+                range: TowerStatElement::new(5.0, 1),
+                damage: TowerStatDamageElement::new(25.0, 1, Element::Air),
+                attacks_per_second: TowerStatElement::new(5.0, 1),
             },
+            meta: TowerMeta {
+                aoe: true,
+                behavior: TowerBehavior::Basic,
+                target_selection: TargetSelection::Nearest,
+                tower_type: TowerKind::Fire,
+            },
+            upgrades: TowerUpgrades::new(
+                45,
+                TowerUpgradeElement::new(3.0, 0.5, TowerUpgradeElementUnit::Unit),
+                TowerUpgradeElement::new(12.0, 1.25, TowerUpgradeElementUnit::Unit),
+                TowerUpgradeElement::new(1.0, 0.2, TowerUpgradeElementUnit::Unit),
+            ),
         }
     }
 }
-
-// Données spécifiques à la tour d'air
-pub const AIR_TOWER_COST: u32 = 85;
-pub const AIR_TOWER_UPGRADE_COST: u32 = 45;
-pub const AIR_ATTACK_SPEED_FACTOR: f32 = 1.25;
-pub const AIR_DAMAGE_FACTOR: f32 = 1.15;
-pub const AIR_RANGE_BONUS: f32 = 0.5;
-
-// Synergies pour les tours d'air
-pub const AIR_DAMAGE_SYNERGY: f32 = 1.2; // Plus chères pour les dégâts
-pub const AIR_SPEED_SYNERGY: f32 = 0.8; // Moins chères pour la vitesse
-pub const AIR_RANGE_SYNERGY: f32 = 0.9; // Moins chères pour la portée

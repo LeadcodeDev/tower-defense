@@ -30,30 +30,12 @@ impl Default for TargetSelection {
 /// Structure de base pour toutes les tourelles
 #[derive(Debug, Clone)]
 pub struct TowerStats {
-    /// Position sur la carte
-    pub position: Position,
     /// Portée de la tourelle
-    pub range: f32,
+    pub range: TowerStatElement,
     /// Élément de la tourelle
-    pub element: Element,
-    /// Dégâts infligés
-    pub damage: f32,
+    pub damage: TowerStatDamageElement,
     /// Attaques par seconde
-    pub attacks_per_second: f32,
-    /// Dernier moment d'attaque
-    pub last_attack: f32,
-    /// Est-ce que la tourelle attaque en zone (AOE)
-    pub aoe: bool,
-    /// Comportement de la tourelle
-    pub behavior: TowerBehavior,
-    /// Stratégie de sélection de cible
-    pub target_selection: TargetSelection,
-    /// Niveau d'amélioration
-    pub upgrade_level: u32,
-    /// Type de la tour
-    pub tower_type: TowerKind,
-    /// Statistiques de base (pour calculer les améliorations)
-    pub base_stats: BaseStats,
+    pub attacks_per_second: TowerStatElement,
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +98,43 @@ impl TowerUpgrades {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct TowerStatElement {
+    pub base: f32,
+    pub level: u32,
+}
+
+impl TowerStatElement {
+    pub fn new(base: f32, level: u32) -> Self {
+        Self { base, level }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TowerStatDamageElement {
+    pub base: f32,
+    pub level: u32,
+    pub element: Element,
+}
+
+impl TowerStatDamageElement {
+    pub fn new(base: f32, level: u32, element: Element) -> Self {
+        Self {
+            base,
+            level,
+            element,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TowerMeta {
+    pub behavior: TowerBehavior,
+    pub target_selection: TargetSelection,
+    pub tower_type: TowerKind,
+    pub aoe: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TowerKind {
     Basic,
@@ -132,63 +151,28 @@ pub enum TowerKind {
 #[derive(Debug, Clone)]
 pub struct Tower {
     pub name: String,
+    pub level: u32,
     pub stats: TowerStats,
     pub upgrades: TowerUpgrades,
+    pub meta: TowerMeta,
+    pub position: Position,
+    pub last_attack: f32,
 }
 
 impl Tower {
-    pub fn position(&self) -> Position {
-        self.stats.position
-    }
-
-    pub fn range(&self) -> f32 {
-        self.stats.range
-    }
-
-    pub fn element(&self) -> Element {
-        self.stats.element
-    }
-
-    pub fn damage(&self) -> f32 {
-        self.stats.damage
-    }
-
-    pub fn attacks_per_second(&self) -> f32 {
-        self.stats.attacks_per_second
-    }
-
-    pub fn is_aoe(&self) -> bool {
-        self.stats.aoe
-    }
-
-    pub fn behavior(&self) -> &TowerBehavior {
-        &self.stats.behavior
-    }
-
-    pub fn last_attack_time(&self) -> f32 {
-        self.stats.last_attack
-    }
-
-    pub fn set_last_attack_time(&mut self, time: f32) {
-        self.stats.last_attack = time;
-    }
-
-    pub fn target_selection(&self) -> TargetSelection {
-        self.stats.target_selection
-    }
-
-    pub fn upgrade_level(&self) -> u32 {
-        self.stats.upgrade_level
-    }
-
     pub fn can_shoot(&self, current_time: f32) -> bool {
-        let time_since_last_attack = current_time - self.last_attack_time();
-        time_since_last_attack >= 1.0 / self.attacks_per_second()
+        let time_since_last_attack = current_time - self.last_attack;
+        time_since_last_attack >= 1.0 / self.stats.attacks_per_second.base
+    }
+
+    pub fn upgrade_level(&mut self) -> u32 {
+        self.level += 1;
+        self.level
     }
 
     pub fn upgrade_attack_speed(&mut self) -> Result<String, String> {
         // Niveau maximum selon le type de tour
-        let max_level = if self.stats.tower_type == TowerKind::Earth {
+        let max_level = if self.meta.tower_type == TowerKind::Earth {
             10
         } else {
             30
@@ -198,9 +182,10 @@ impl Tower {
             return Err(format!("La vitesse d'attaque est déjà au niveau maximum."));
         }
 
-        let current = self.attacks_per_second();
+        let current = self.stats.attacks_per_second.base;
         self.upgrades.attacks_speed.level += 1;
-        self.stats.attacks_per_second = match self.upgrades.attacks_speed.value_multiplier_unit {
+        self.stats.attacks_per_second.base = match self.upgrades.attacks_speed.value_multiplier_unit
+        {
             TowerUpgradeElementUnit::Percent => {
                 current * self.upgrades.attacks_speed.value_multiplier
             }
@@ -212,13 +197,13 @@ impl Tower {
             "🔧 Tour {} vitesse d'attaque améliorée ({} -> {})",
             self.tower_type_name(),
             current,
-            self.attacks_per_second()
+            self.stats.attacks_per_second.base
         ))
     }
 
     pub fn upgrade_damage(&mut self) -> Result<String, String> {
         // Niveau maximum selon le type de tour
-        let max_level = if self.stats.tower_type == TowerKind::Earth {
+        let max_level = if self.meta.tower_type == TowerKind::Earth {
             10
         } else {
             30
@@ -228,9 +213,9 @@ impl Tower {
             return Err(format!("Les dégâts sont déjà au niveau maximum."));
         }
 
-        let current = self.damage();
+        let current = self.stats.damage.base;
         self.upgrades.damage.level += 1;
-        self.stats.damage = match self.upgrades.damage.value_multiplier_unit {
+        self.stats.damage.base = match self.upgrades.damage.value_multiplier_unit {
             TowerUpgradeElementUnit::Percent => current * self.upgrades.damage.value_multiplier,
             TowerUpgradeElementUnit::Unit => current + self.upgrades.damage.value_multiplier,
         };
@@ -239,13 +224,13 @@ impl Tower {
             "🔧 Tour {} dégâts améliorés ({} -> {})",
             self.tower_type_name(),
             current,
-            self.damage()
+            self.stats.damage.base
         ))
     }
 
     pub fn upgrade_range(&mut self) -> Result<String, String> {
         // Niveau maximum selon le type de tour
-        let max_level = if self.stats.tower_type == TowerKind::Earth {
+        let max_level = if self.meta.tower_type == TowerKind::Earth {
             10
         } else {
             30
@@ -255,9 +240,9 @@ impl Tower {
             return Err(format!("La portée est déjà au niveau maximum."));
         }
 
-        let current = self.range();
+        let current = self.stats.range.base;
         self.upgrades.range.level += 1;
-        self.stats.range = match self.upgrades.range.value_multiplier_unit {
+        self.stats.range.base = match self.upgrades.range.value_multiplier_unit {
             TowerUpgradeElementUnit::Percent => current * self.upgrades.range.value_multiplier,
             TowerUpgradeElementUnit::Unit => current + self.upgrades.range.value_multiplier,
         };
@@ -266,13 +251,12 @@ impl Tower {
             "🔧 Tour {} portée améliorée ({} -> {})",
             self.tower_type_name(),
             current,
-            self.range()
+            self.stats.range.base
         ))
     }
 
     /// Retourne le coût d'amélioration en fonction du niveau actuel
-    pub fn upgrade_cost(&self) -> u32 {
-        let level = self.upgrade_level();
+    pub fn upgrade_cost(&self, level: u32) -> u32 {
         let exponential_factor = 1.5_f32.powi(level as i32);
         let linear_component = 20 * level;
 
@@ -288,7 +272,7 @@ impl Tower {
         };
 
         // Vérifier si on a atteint le niveau maximum
-        let max_level = if self.stats.tower_type == TowerKind::Earth {
+        let max_level = if self.meta.tower_type == TowerKind::Earth {
             // Niveau maximum spécifique pour la tour de terre
             10
         } else {
@@ -313,7 +297,7 @@ impl Tower {
 
     /// Retourne le type de la tour sous forme de chaîne
     pub fn tower_type_name(&self) -> &str {
-        match self.stats.tower_type {
+        match self.meta.tower_type {
             TowerKind::Basic => "Basique",
             TowerKind::Fire => "Feu",
             TowerKind::Water => "Eau",
@@ -330,10 +314,10 @@ impl Tower {
         let mut logs = Vec::new();
 
         // Mettre à jour le temps du dernier tir
-        self.set_last_attack_time(current_time);
+        self.last_attack = current_time;
 
         // Sélectionner les cibles primaires en fonction de la stratégie
-        match self.target_selection() {
+        match self.meta.target_selection {
             TargetSelection::Nearest => {
                 if let Some(target) = self.find_nearest_target(wave) {
                     primary_targets.push(target);
@@ -367,25 +351,20 @@ impl Tower {
 
                 // Appliquer les dégâts à la cible primaire d'abord
                 if let Some(monster) = wave.monsters.get_mut(target_idx) {
-                    let damage = self.damage();
+                    let damage = self.stats.damage.base;
                     // Appliquer les effets du comportement de la tour
-                    let actual_damage = self.behavior().apply(monster, damage);
+                    let actual_damage = self.meta.behavior.apply(monster, damage);
                     monster.hp -= actual_damage;
 
                     logs.push(format!(
                         "🏹 Tourelle {:?} attaque! -{:.1} HP sur {}. HP restants: {:.1}",
-                        self.element(),
-                        actual_damage,
-                        monster.name,
-                        monster.hp
+                        self.stats.damage.element, actual_damage, monster.name, monster.hp
                     ));
                 }
 
                 // Si la tourelle fait des AOE, appliquer des dégâts aux monstres proches de la cible
-                if self.is_aoe() {
+                if self.meta.aoe {
                     let target_pos = wave.monsters[target_idx].position;
-                    let aoe_radius = 1.0; // Rayon de 1 case autour de la cible
-
                     // Rechercher les monstres dans le rayon de l'AOE
                     for (idx, monster) in wave.monsters.iter_mut().enumerate() {
                         // Ne pas réappliquer les dégâts à la cible principale
@@ -397,10 +376,10 @@ impl Tower {
                         let distance = target_pos.distance_to(&monster.position);
 
                         // Si le monstre est dans le rayon de l'AOE
-                        if distance <= aoe_radius {
-                            let aoe_damage = self.damage() * 0.5; // 50% des dégâts pour l'AOE
+                        if distance <= self.stats.range.base {
+                            let aoe_damage = self.stats.damage.base * 0.5; // 50% des dégâts pour l'AOE
                             // Appliquer les effets du comportement de la tour
-                            let actual_aoe_damage = self.behavior().apply(monster, aoe_damage);
+                            let actual_aoe_damage = self.meta.behavior.apply(monster, aoe_damage);
                             monster.hp -= actual_aoe_damage;
 
                             let log_message = format!(
@@ -418,7 +397,7 @@ impl Tower {
     }
 
     fn find_nearest_target(&self, wave: &Wave) -> Option<usize> {
-        let tower_pos = self.position();
+        let tower_pos = self.position;
         let mut nearest_idx = None;
         let mut min_distance = f32::MAX;
 
@@ -431,7 +410,7 @@ impl Tower {
             let dy = (monster.position.y - tower_pos.y) as f32;
             let distance = (dx * dx + dy * dy).sqrt();
 
-            if distance <= self.range() && distance < min_distance {
+            if distance <= self.stats.range.base && distance < min_distance {
                 min_distance = distance;
                 nearest_idx = Some(idx);
             }
@@ -441,18 +420,18 @@ impl Tower {
     }
 
     fn is_in_range(&self, monster: &Monster) -> bool {
-        let tower_pos = self.position();
+        let tower_pos = self.position;
         let dx = (monster.position.x - tower_pos.x) as f32;
         let dy = (monster.position.y - tower_pos.y) as f32;
         let distance = (dx * dx + dy * dy).sqrt();
 
-        distance <= self.range()
+        distance <= self.stats.range.base
     }
 
     /// Retourne true si toutes les améliorations de la tour sont au niveau maximum
     pub fn is_fully_upgraded(&self) -> bool {
         // Déterminer le niveau maximum selon le type de tour
-        let max_level = if self.stats.tower_type == TowerKind::Earth {
+        let max_level = if self.meta.tower_type == TowerKind::Earth {
             10
         } else {
             30

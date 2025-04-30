@@ -1,5 +1,6 @@
 use crate::application::engine::maps::MapType;
 use crate::application::engine::maps::forest::ForestMap;
+use crate::application::engine::towers::ice_tower::IceTower;
 use crate::domain::entities::tower::UpgradeType;
 use crate::domain::entities::{game::Game, position::Position};
 use crate::domain::entities::{tower::TowerKind, wave::Wave};
@@ -350,7 +351,6 @@ impl App {
             View::Game => {
                 match self.ui_mode {
                     UiMode::Normal => {
-                        // En mode normal, sélectionner une action
                         let action = self.available_actions[self.selected_index];
                         match action {
                             GameAction::BuildTower => {
@@ -368,7 +368,7 @@ impl App {
                                     // Passer directement en mode placement pour sélectionner une tour sur la carte
                                     self.ui_mode = UiMode::Placement;
                                     self.selected_tower = None; // Pas de tour sélectionnée = mode amélioration
-                                    self.cursor_position = self.game.towers[0].position(); // Commencer sur la première tour
+                                    self.cursor_position = self.game.towers[0].position; // Commencer sur la première tour
                                 } else {
                                     self.game.add_log("Aucune tour à améliorer.".to_string());
                                 }
@@ -405,8 +405,8 @@ impl App {
                             // Chercher une tour à la position du curseur
                             let mut found_tower = false;
                             for (idx, tower) in self.game.towers.iter().enumerate() {
-                                if tower.position().x == self.cursor_position.x
-                                    && tower.position().y == self.cursor_position.y
+                                if tower.position.x == self.cursor_position.x
+                                    && tower.position.y == self.cursor_position.y
                                 {
                                     self.upgrade_tower(idx, None);
                                     found_tower = true;
@@ -576,29 +576,13 @@ impl App {
         }
     }
 
-    pub fn add_lightning_tower(&mut self, position: Position) {
-        if self.game.has_enough_money(TowerType::Lightning.cost()) {
-            if self.game.spend_money(TowerType::Lightning.cost()) {
-                // Create a Lightning tower implementation
-                let tower = crate::application::engine::towers::lightning_tower::LightningTower::positionned(position);
-                self.game.towers.push(tower);
-                self.game.add_log(format!(
-                    "Tour de foudre placée en [{}, {}]",
-                    position.x, position.y
-                ));
-            }
-        } else {
-            self.game
-                .add_log("Pas assez d'argent pour cette tour!".to_string());
-        }
-    }
+    pub fn add_lightning_tower(&mut self, position: Position) {}
 
     pub fn add_ice_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Ice.cost()) {
             if self.game.spend_money(TowerType::Ice.cost()) {
                 // Create an Ice tower implementation
-                let tower =
-                    crate::application::engine::towers::ice_tower::IceTower::positionned(position);
+                let tower = IceTower::positionned(position);
                 self.game.towers.push(tower);
                 self.game.add_log(format!(
                     "Tour de glace placée en [{}, {}]",
@@ -611,25 +595,7 @@ impl App {
         }
     }
 
-    pub fn add_poison_tower(&mut self, position: Position) {
-        if self.game.has_enough_money(TowerType::Poison.cost()) {
-            if self.game.spend_money(TowerType::Poison.cost()) {
-                // Create a Poison tower implementation
-                let tower =
-                    crate::application::engine::towers::poison_tower::PoisonTower::positionned(
-                        position,
-                    );
-                self.game.towers.push(tower);
-                self.game.add_log(format!(
-                    "Tour de poison placée en [{}, {}]",
-                    position.x, position.y
-                ));
-            }
-        } else {
-            self.game
-                .add_log("Pas assez d'argent pour cette tour!".to_string());
-        }
-    }
+    pub fn add_poison_tower(&mut self, position: Position) {}
 
     pub fn remove_tower(&mut self, position: Position) {
         self.game.remove_tower(position);
@@ -651,22 +617,22 @@ impl App {
             keep_selection.unwrap_or(0)
         };
 
+        let tower = &self.game.towers[index];
+
         // Extraire les informations nécessaires
-        let tower_type = self.game.towers[index].tower_type_name().to_string();
-        let tower_level = self.game.towers[index].upgrade_level();
-        let attacks_per_second = self.game.towers[index].attacks_per_second();
-        let damage = self.game.towers[index].damage();
-        let range = self.game.towers[index].range();
+        let tower_type = tower.tower_type_name().to_string();
+        let attacks_per_second = tower.stats.attacks_per_second.base;
+        let damage = tower.stats.damage.base;
+        let range = tower.stats.range.base;
 
         // Récupérer les coûts pour chaque type d'amélioration
-        let cost_attack_speed =
-            self.game.towers[index].upgrade_cost_for_attribute(UpgradeType::AttackSpeed);
-        let cost_damage = self.game.towers[index].upgrade_cost_for_attribute(UpgradeType::Damage);
-        let cost_range = self.game.towers[index].upgrade_cost_for_attribute(UpgradeType::Range);
+        let cost_attack_speed = tower.upgrade_cost_for_attribute(UpgradeType::AttackSpeed);
+        let cost_damage = tower.upgrade_cost_for_attribute(UpgradeType::Damage);
+        let cost_range = tower.upgrade_cost_for_attribute(UpgradeType::Range);
 
         // Afficher les informations sur la tour
         self.game
-            .add_log(format!("🔍 Tour {} (Niveau {})", tower_type, tower_level));
+            .add_log(format!("🔍 Tour {} (Niveau {})", tower_type, tower.level));
         self.game.add_log(format!(
             "💰 Vitesse d'attaque: {} pièces",
             cost_attack_speed
@@ -756,7 +722,6 @@ impl App {
         self.ui_mode = UiMode::Normal;
     }
 
-    /// Vérifie si on est en mode sélection de tour sur la carte
     pub fn is_tower_selection_on_map(&self) -> bool {
         self.tower_selection_on_map
     }
@@ -772,19 +737,16 @@ impl App {
         self.ui_mode = UiMode::TowerSelection;
         self.tower_selection_on_map = true;
 
-        // Sélectionner la première tour par défaut
         self.selected_tower_index = Some(0);
         if let Some(index) = self.selected_tower_index {
             if index < self.game.towers.len() {
                 let tower = &self.game.towers[index];
-                self.cursor_position = tower.position();
+                self.cursor_position = tower.position;
 
-                // Afficher les infos de la tour sélectionnée
                 let tower_type = tower.tower_type_name();
-                let level = tower.upgrade_level();
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
-                    tower_type, level
+                    tower_type, tower.level
                 ));
             }
         }
@@ -793,15 +755,13 @@ impl App {
     /// Sélectionne la tour au-dessus de la position actuelle
     pub fn select_tower_on_map_up(&mut self) {
         if let Some(current_index) = self.selected_tower_index {
-            let current_pos = self.game.towers[current_index].position();
+            let current_pos = self.game.towers[current_index].position;
 
-            // Trouver la tour la plus proche vers le haut
             let mut closest_tower_index = None;
             let mut min_distance = f32::MAX;
 
             for (i, tower) in self.game.towers.iter().enumerate() {
-                let pos = tower.position();
-                // Vérifier que la tour est au-dessus
+                let pos = tower.position;
                 if pos.y < current_pos.y {
                     let dx = (pos.x - current_pos.x) as f32;
                     let dy = (pos.y - current_pos.y) as f32;
@@ -816,15 +776,14 @@ impl App {
 
             if let Some(index) = closest_tower_index {
                 self.selected_tower_index = Some(index);
-                self.cursor_position = self.game.towers[index].position();
+                self.cursor_position = self.game.towers[index].position;
 
-                // Afficher les infos de la tour sélectionnée
                 let tower = &self.game.towers[index];
                 let tower_type = tower.tower_type_name();
-                let level = tower.upgrade_level();
+
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
-                    tower_type, level
+                    tower_type, tower.level
                 ));
             }
         }
@@ -833,14 +792,14 @@ impl App {
     /// Sélectionne la tour en dessous de la position actuelle
     pub fn select_tower_on_map_down(&mut self) {
         if let Some(current_index) = self.selected_tower_index {
-            let current_pos = self.game.towers[current_index].position();
+            let current_pos = self.game.towers[current_index].position;
 
             // Trouver la tour la plus proche vers le bas
             let mut closest_tower_index = None;
             let mut min_distance = f32::MAX;
 
             for (i, tower) in self.game.towers.iter().enumerate() {
-                let pos = tower.position();
+                let pos = tower.position;
                 // Vérifier que la tour est en dessous
                 if pos.y > current_pos.y {
                     let dx = (pos.x - current_pos.x) as f32;
@@ -856,15 +815,14 @@ impl App {
 
             if let Some(index) = closest_tower_index {
                 self.selected_tower_index = Some(index);
-                self.cursor_position = self.game.towers[index].position();
+                self.cursor_position = self.game.towers[index].position;
 
-                // Afficher les infos de la tour sélectionnée
                 let tower = &self.game.towers[index];
                 let tower_type = tower.tower_type_name();
-                let level = tower.upgrade_level();
+
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
-                    tower_type, level
+                    tower_type, tower.level
                 ));
             }
         }
@@ -873,14 +831,14 @@ impl App {
     /// Sélectionne la tour à gauche de la position actuelle
     pub fn select_tower_on_map_left(&mut self) {
         if let Some(current_index) = self.selected_tower_index {
-            let current_pos = self.game.towers[current_index].position();
+            let current_pos = self.game.towers[current_index].position;
 
             // Trouver la tour la plus proche vers la gauche
             let mut closest_tower_index = None;
             let mut min_distance = f32::MAX;
 
             for (i, tower) in self.game.towers.iter().enumerate() {
-                let pos = tower.position();
+                let pos = tower.position;
                 // Vérifier que la tour est à gauche
                 if pos.x < current_pos.x {
                     let dx = (pos.x - current_pos.x) as f32;
@@ -896,15 +854,14 @@ impl App {
 
             if let Some(index) = closest_tower_index {
                 self.selected_tower_index = Some(index);
-                self.cursor_position = self.game.towers[index].position();
+                self.cursor_position = self.game.towers[index].position;
 
-                // Afficher les infos de la tour sélectionnée
                 let tower = &self.game.towers[index];
                 let tower_type = tower.tower_type_name();
-                let level = tower.upgrade_level();
+
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
-                    tower_type, level
+                    tower_type, tower.level
                 ));
             }
         }
@@ -913,15 +870,14 @@ impl App {
     /// Sélectionne la tour à droite de la position actuelle
     pub fn select_tower_on_map_right(&mut self) {
         if let Some(current_index) = self.selected_tower_index {
-            let current_pos = self.game.towers[current_index].position();
+            let current_pos = self.game.towers[current_index].position;
 
             // Trouver la tour la plus proche vers la droite
             let mut closest_tower_index = None;
             let mut min_distance = f32::MAX;
 
             for (i, tower) in self.game.towers.iter().enumerate() {
-                let pos = tower.position();
-                // Vérifier que la tour est à droite
+                let pos = tower.position;
                 if pos.x > current_pos.x {
                     let dx = (pos.x - current_pos.x) as f32;
                     let dy = (pos.y - current_pos.y) as f32;
@@ -936,15 +892,14 @@ impl App {
 
             if let Some(index) = closest_tower_index {
                 self.selected_tower_index = Some(index);
-                self.cursor_position = self.game.towers[index].position();
+                self.cursor_position = self.game.towers[index].position;
 
                 // Afficher les infos de la tour sélectionnée
                 let tower = &self.game.towers[index];
                 let tower_type = tower.tower_type_name();
-                let level = tower.upgrade_level();
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
-                    tower_type, level
+                    tower_type, tower.level
                 ));
             }
         }

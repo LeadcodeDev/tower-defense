@@ -131,9 +131,9 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
 
     // Dessiner les tourelles
     for (i, tower) in game.towers.iter().enumerate() {
-        let pos = tower.position();
+        let pos = tower.position;
         if pos.x < area.width as i32 && pos.y < area.height as i32 {
-            let tower_char = match tower.stats.tower_type {
+            let tower_char = match tower.meta.tower_type {
                 TowerKind::Basic => 'B',
                 TowerKind::Fire => 'F',
                 TowerKind::Water => 'W',
@@ -468,9 +468,8 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                 if tower_index < app.game.towers.len() {
                     let tower = &app.game.towers[tower_index];
                     let tower_type = tower.tower_type_name();
-                    let position = tower.position();
-                    let level = tower.upgrade_level();
-                    let cost = tower.upgrade_cost();
+                    let position = tower.position;
+                    let level = tower.level;
 
                     // Afficher d'abord les informations sur la tour
                     let tower_info = format!(
@@ -498,9 +497,9 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
 
                         // Récupérer les valeurs actuelles
                         let current_value = match upgrade_type {
-                            UpgradeType::AttackSpeed => tower.attacks_per_second(),
-                            UpgradeType::Damage => tower.damage(),
-                            UpgradeType::Range => tower.range(),
+                            UpgradeType::AttackSpeed => tower.stats.attacks_per_second.base,
+                            UpgradeType::Damage => tower.stats.damage.base,
+                            UpgradeType::Range => tower.stats.range.base,
                         };
 
                         let bonus = if is_maxed {
@@ -593,9 +592,9 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                 // Afficher toutes les tours disponibles
                 for (i, tower) in app.game.towers.iter().enumerate() {
                     let tower_type = tower.tower_type_name();
-                    let position = tower.position();
-                    let level = tower.upgrade_level();
-                    let cost = tower.upgrade_cost();
+                    let position = tower.position;
+                    let level = tower.level;
+                    let cost = tower.upgrade_cost(level);
 
                     let tower_info = format!(
                         "Tour {} ({},{}) - Niveau {} - 💰 {} pour améliorer",

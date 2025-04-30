@@ -3,8 +3,8 @@ use crate::domain::entities::{
     element::Element,
     position::Position,
     tower::{
-        BaseStats, TargetSelection, Tower, TowerKind, TowerStats, TowerUpgradeElement,
-        TowerUpgradeElementUnit, TowerUpgrades,
+        BaseStats, TargetSelection, Tower, TowerKind, TowerMeta, TowerStatDamageElement,
+        TowerStatElement, TowerStats, TowerUpgradeElement, TowerUpgradeElementUnit, TowerUpgrades,
     },
 };
 
@@ -13,33 +13,27 @@ pub struct BasicTower;
 impl BasicTower {
     pub fn positionned(position: Position) -> Tower {
         Tower {
-            name: "Basic Tower".to_string(),
-            upgrades: TowerUpgrades::new(
-                30,
-                TowerUpgradeElement::new(2.0, 0.5, TowerUpgradeElementUnit::Unit),
-                TowerUpgradeElement::new(10.0, 1.25, TowerUpgradeElementUnit::Percent),
-                TowerUpgradeElement::new(1.0, 1.2, TowerUpgradeElementUnit::Percent),
-            ),
+            name: "Fire Tower".to_string(),
+            level: 1,
+            position,
+            last_attack: 0.0,
             stats: TowerStats {
-                position,
-                range: 2.0,
-                element: Element::Neutral,
-                damage: 10.0,
-                attacks_per_second: 1.0,
-                aoe: false,
-                behavior: TowerBehavior::Basic,
-                last_attack: 0.0,
-                target_selection: TargetSelection::Nearest,
-                upgrade_level: 0,
-                tower_type: TowerKind::Basic,
-                base_stats: BaseStats {
-                    range: 2.0,
-                    damage: 10.0,
-                    attacks_per_second: 1.0,
-                },
+                range: TowerStatElement::new(5.0, 1),
+                damage: TowerStatDamageElement::new(25.0, 1, Element::Fire),
+                attacks_per_second: TowerStatElement::new(5.0, 1),
             },
+            meta: TowerMeta {
+                aoe: true,
+                behavior: TowerBehavior::Basic,
+                target_selection: TargetSelection::Nearest,
+                tower_type: TowerKind::Fire,
+            },
+            upgrades: TowerUpgrades::new(
+                45,
+                TowerUpgradeElement::new(3.0, 0.5, TowerUpgradeElementUnit::Unit),
+                TowerUpgradeElement::new(12.0, 1.25, TowerUpgradeElementUnit::Unit),
+                TowerUpgradeElement::new(1.0, 0.2, TowerUpgradeElementUnit::Unit),
+            ),
         }
     }
 }
-
-pub const BASIC_RANGE_BONUS: f32 = 0.5;
