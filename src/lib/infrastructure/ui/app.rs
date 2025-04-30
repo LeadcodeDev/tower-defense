@@ -422,7 +422,7 @@ impl App {
                         } else if let Some(tower_type) = self.selected_tower {
                             // Placer la tour selon son type
                             match tower_type {
-                                TowerType::Basic => self.add_tower(self.cursor_position),
+                                TowerType::Basic => self.add_basic_tower(self.cursor_position),
                                 TowerType::Fire => self.add_fire_tower(self.cursor_position),
                                 TowerType::Water => self.add_water_tower(self.cursor_position),
                                 TowerType::Earth => self.add_earth_tower(self.cursor_position),
@@ -536,8 +536,16 @@ impl App {
     }
 
     // Méthodes pour ajouter différents types de tours
-    pub fn add_tower(&mut self, position: Position) {
+    pub fn add_basic_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Basic.cost()) {
+            // Vérifier si la position est valide avant de débiter
+            if !self.is_position_valid(&position) {
+                self.game.add_log(
+                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
+                );
+                return;
+            }
+
             if self.game.spend_money(TowerType::Basic.cost()) {
                 self.game.add_basic_tower(position);
             }
@@ -546,6 +554,14 @@ impl App {
 
     pub fn add_fire_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Fire.cost()) {
+            // Vérifier si la position est valide avant de débiter
+            if !self.is_position_valid(&position) {
+                self.game.add_log(
+                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
+                );
+                return;
+            }
+
             if self.game.spend_money(TowerType::Fire.cost()) {
                 self.game.add_fire_tower(position);
             }
@@ -554,6 +570,14 @@ impl App {
 
     pub fn add_water_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Water.cost()) {
+            // Vérifier si la position est valide avant de débiter
+            if !self.is_position_valid(&position) {
+                self.game.add_log(
+                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
+                );
+                return;
+            }
+
             if self.game.spend_money(TowerType::Water.cost()) {
                 self.game.add_water_tower(position);
             }
@@ -562,6 +586,14 @@ impl App {
 
     pub fn add_earth_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Earth.cost()) {
+            // Vérifier si la position est valide avant de débiter
+            if !self.is_position_valid(&position) {
+                self.game.add_log(
+                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
+                );
+                return;
+            }
+
             if self.game.spend_money(TowerType::Earth.cost()) {
                 self.game.add_earth_tower(position);
             }
@@ -570,6 +602,14 @@ impl App {
 
     pub fn add_air_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Air.cost()) {
+            // Vérifier si la position est valide avant de débiter
+            if !self.is_position_valid(&position) {
+                self.game.add_log(
+                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
+                );
+                return;
+            }
+
             if self.game.spend_money(TowerType::Air.cost()) {
                 self.game.add_air_tower(position);
             }
@@ -903,5 +943,25 @@ impl App {
                 ));
             }
         }
+    }
+
+    /// Vérifie si une position est valide pour placer une tour
+    fn is_position_valid(&self, position: &Position) -> bool {
+        // Vérifier si la position est sur le chemin des monstres
+        if self.game.map.is_position_on_path(position) {
+            return false;
+        }
+
+        // Vérifier si une tour existe déjà à cette position
+        if self
+            .game
+            .towers
+            .iter()
+            .any(|t| t.position.x == position.x && t.position.y == position.y)
+        {
+            return false;
+        }
+
+        true
     }
 }
