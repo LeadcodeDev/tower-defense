@@ -188,15 +188,19 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
         let cursor_y = app.cursor_position.y;
         if cursor_x < area.width as i32 && cursor_y < area.height as i32 {
             // En mode placement normal, afficher X, en mode sélection sur carte afficher un symbole différent
-            let cursor_char = if app.ui_mode == UiMode::Placement {
-                'X'
+            let is_upgrade_mode = app.selected_index < app.available_actions.len()
+                && app.selected_tower.is_none()
+                && app.available_actions[app.selected_index] == GameAction::UpgradeTower;
+
+            if is_upgrade_mode {
+                map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
+                    .bg(Color::Black)
+                    .add_modifier(Modifier::BOLD);
             } else {
-                '+'
-            };
-            map_chars[cursor_y as usize][cursor_x as usize] = cursor_char;
-            map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD);
+                map_chars[cursor_y as usize][cursor_x as usize] = '×';
+                map_styles[cursor_y as usize][cursor_x as usize] =
+                    Style::default().add_modifier(Modifier::BOLD);
+            }
         }
     }
 

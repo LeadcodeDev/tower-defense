@@ -38,11 +38,8 @@ pub struct Game {
     pub base_prototypes: Vec<Monster>,
     pub elapsed_time: f32,
     pub spawn_interval: f32, // Intervalle entre les monstres (0 = spawn simultané)
-    /// Logs des événements du jeu
     pub logs: Vec<GameLog>,
-    /// Nombre maximum de logs à conserver
     pub log_limit: usize,
-    /// Monnaie du joueur
     pub money: u32,
 }
 
