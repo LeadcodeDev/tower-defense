@@ -5,8 +5,12 @@ use std::{
 
 use rand::{Rng, rng};
 
-use crate::application::engine::towers::{
-    air_tower::AirTower, basic_tower::BasicTower, earth_tower::EarthTower, fire_tower::FireTower,
+use crate::{
+    application::engine::towers::{
+        air_tower::AirTower, basic_tower::BasicTower, earth_tower::EarthTower,
+        fire_tower::FireTower, sentinel_tower::SentinelTower,
+    },
+    infrastructure::ui::notifications::Notifier,
 };
 
 use super::{
@@ -77,7 +81,7 @@ impl Game {
     /// Ajoute un nouveau log au jeu
     pub fn add_log(&mut self, message: String) {
         let log = GameLog {
-            message,
+            message: message.clone(),
             timestamp: SystemTime::now(),
         };
 
@@ -86,6 +90,11 @@ impl Game {
         // Limiter le nombre de logs
         if self.logs.len() > self.log_limit {
             self.logs.remove(0);
+        }
+
+        // Envoyer une notification pour les événements importants
+        if message.contains("Game Over") || message.contains("VICTOIRE") {
+            Notifier::send_notification("Tower Defense", &message);
         }
     }
 
@@ -105,6 +114,10 @@ impl Game {
 
     pub fn add_air_tower(&mut self, position: Position) {
         self.towers.push(AirTower::positionned(position));
+    }
+
+    pub fn add_sentinel_tower(&mut self, position: Position) {
+        self.towers.push(SentinelTower::positionned(position));
     }
 
     pub fn remove_tower(&mut self, position: Position) {

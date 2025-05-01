@@ -1,6 +1,7 @@
 use crate::application::engine::maps::MapType;
 use crate::application::engine::maps::forest::ForestMap;
 use crate::application::engine::towers::ice_tower::IceTower;
+use crate::application::engine::towers::sentinel_tower::SentinelTower;
 use crate::domain::entities::tower::UpgradeType;
 use crate::domain::entities::{game::Game, position::Position};
 use crate::domain::entities::{tower::TowerKind, wave::Wave};
@@ -39,6 +40,7 @@ pub enum TowerType {
     Lightning,
     Ice,
     Poison,
+    Sentinel,
 }
 
 impl TowerType {
@@ -53,6 +55,7 @@ impl TowerType {
             TowerType::Lightning => 110,
             TowerType::Ice => 95,
             TowerType::Poison => 90,
+            TowerType::Sentinel => 100,
         }
     }
 
@@ -67,6 +70,7 @@ impl TowerType {
             TowerType::Lightning => TowerKind::Lightning,
             TowerType::Ice => TowerKind::Ice,
             TowerType::Poison => TowerKind::Poison,
+            TowerType::Sentinel => TowerKind::Sentinel,
         }
     }
 }
@@ -165,6 +169,7 @@ impl App {
             TowerType::Water,
             TowerType::Earth,
             TowerType::Air,
+            TowerType::Sentinel,
         ];
 
         // Cartes disponibles
@@ -432,6 +437,11 @@ impl App {
                                 }
                                 TowerType::Ice => self.add_ice_tower(self.cursor_position),
                                 TowerType::Poison => self.add_poison_tower(self.cursor_position),
+                                TowerType::Sentinel => {
+                                    if let Err(e) = self.add_sentinel_tower(self.cursor_position) {
+                                        self.game.add_log(format!("❌ {}", e));
+                                    }
+                                }
                             }
 
                             // Retourner au mode normal après le placement
@@ -613,6 +623,28 @@ impl App {
             if self.game.spend_money(TowerType::Air.cost()) {
                 self.game.add_air_tower(position);
             }
+        }
+    }
+
+    pub fn add_sentinel_tower(&mut self, position: Position) -> Result<(), String> {
+        if !self.game.has_enough_money(TowerType::Sentinel.cost()) {
+            return Err("Pas assez d'argent".to_string());
+        }
+
+        if !self.is_position_valid(&position) {
+            return Err("Position invalide".to_string());
+        }
+
+        if self.game.spend_money(TowerType::Sentinel.cost()) {
+            let tower = SentinelTower::positionned(position);
+            self.game.towers.push(tower);
+            self.game.add_log(format!(
+                "🏗️ Tour sentinelle construite en ({}, {})",
+                position.x, position.y
+            ));
+            Ok(())
+        } else {
+            Err("Erreur lors de la construction".to_string())
         }
     }
 

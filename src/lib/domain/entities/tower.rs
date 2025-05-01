@@ -77,17 +77,17 @@ impl TowerUpgradeElement {
 #[derive(Debug, Clone)]
 pub struct TowerUpgrades {
     pub base_cost: u32,
-    pub range: TowerUpgradeElement,
-    pub damage: TowerUpgradeElement,
-    pub attacks_speed: TowerUpgradeElement,
+    pub range: Option<TowerUpgradeElement>,
+    pub damage: Option<TowerUpgradeElement>,
+    pub attacks_speed: Option<TowerUpgradeElement>,
 }
 
 impl TowerUpgrades {
     pub fn new(
         base_cost: u32,
-        range: TowerUpgradeElement,
-        damage: TowerUpgradeElement,
-        attacks_speed: TowerUpgradeElement,
+        range: Option<TowerUpgradeElement>,
+        damage: Option<TowerUpgradeElement>,
+        attacks_speed: Option<TowerUpgradeElement>,
     ) -> Self {
         Self {
             base_cost,
@@ -128,11 +128,17 @@ impl TowerStatDamageElement {
 }
 
 #[derive(Debug, Clone)]
+pub enum TowerAoe {
+    Radius(u32, f32),
+    Count(u32, f32),
+}
+
+#[derive(Debug, Clone)]
 pub struct TowerMeta {
     pub behavior: TowerBehavior,
     pub target_selection: TargetSelection,
     pub tower_type: TowerKind,
-    pub aoe: bool,
+    pub aoe: Option<TowerAoe>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -145,10 +151,10 @@ pub enum TowerKind {
     Lightning,
     Ice,
     Poison,
+    Sentinel,
 }
 
 /// Structure uniforme pour toutes les tourelles
-#[derive(Debug, Clone)]
 pub struct Tower {
     pub name: String,
     pub level: u32,
@@ -157,6 +163,7 @@ pub struct Tower {
     pub meta: TowerMeta,
     pub position: Position,
     pub last_attack: f32,
+    pub on_action: Option<Box<dyn Fn(&mut Wave, &mut Tower) -> Result<(), String>>>,
 }
 
 impl Tower {
@@ -178,27 +185,30 @@ impl Tower {
             30
         };
 
-        if self.upgrades.attacks_speed.level >= max_level {
-            return Err(format!("La vitesse d'attaque est déjà au niveau maximum."));
+        if let Some(upgrades) = &mut self.upgrades.attacks_speed {
+            if upgrades.level >= max_level {
+                return Err(format!("La vitesse d'attaque est déjà au niveau maximum."));
+            }
         }
 
         let current = self.stats.attacks_per_second.base;
-        self.upgrades.attacks_speed.level += 1;
-        self.stats.attacks_per_second.base = match self.upgrades.attacks_speed.value_multiplier_unit
-        {
-            TowerUpgradeElementUnit::Percent => {
-                current * self.upgrades.attacks_speed.value_multiplier
-            }
 
-            TowerUpgradeElementUnit::Unit => current + self.upgrades.attacks_speed.value_multiplier,
-        };
+        if let Some(upgrades) = &mut self.upgrades.attacks_speed {
+            upgrades.level += 1;
+            self.stats.attacks_per_second.base = match upgrades.value_multiplier_unit {
+                TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
+                TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
+            };
 
-        Ok(format!(
-            "🔧 Tour {} vitesse d'attaque améliorée ({} -> {})",
-            self.tower_type_name(),
-            current,
-            self.stats.attacks_per_second.base
-        ))
+            Ok(format!(
+                "🔧 Tour {} vitesse d'attaque améliorée ({} -> {})",
+                self.tower_type_name(),
+                current,
+                self.stats.attacks_per_second.base
+            ))
+        } else {
+            Err(format!("La vitesse d'attaque ne peut pas être améliorée."))
+        }
     }
 
     pub fn upgrade_damage(&mut self) -> Result<String, String> {
@@ -209,23 +219,28 @@ impl Tower {
             30
         };
 
-        if self.upgrades.damage.level >= max_level {
+        if self.upgrades.damage.as_ref().unwrap().level >= max_level {
             return Err(format!("Les dégâts sont déjà au niveau maximum."));
         }
 
         let current = self.stats.damage.base;
-        self.upgrades.damage.level += 1;
-        self.stats.damage.base = match self.upgrades.damage.value_multiplier_unit {
-            TowerUpgradeElementUnit::Percent => current * self.upgrades.damage.value_multiplier,
-            TowerUpgradeElementUnit::Unit => current + self.upgrades.damage.value_multiplier,
-        };
 
-        Ok(format!(
-            "🔧 Tour {} dégâts améliorés ({} -> {})",
-            self.tower_type_name(),
-            current,
-            self.stats.damage.base
-        ))
+        if let Some(upgrades) = &mut self.upgrades.damage {
+            upgrades.level += 1;
+            self.stats.damage.base = match upgrades.value_multiplier_unit {
+                TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
+                TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
+            };
+
+            Ok(format!(
+                "🔧 Tour {} dégâts améliorés ({} -> {})",
+                self.tower_type_name(),
+                current,
+                self.stats.damage.base
+            ))
+        } else {
+            Err(format!("Les dégâts ne peuvent pas être améliorés."))
+        }
     }
 
     pub fn upgrade_range(&mut self) -> Result<String, String> {
@@ -236,23 +251,30 @@ impl Tower {
             30
         };
 
-        if self.upgrades.range.level >= max_level {
-            return Err(format!("La portée est déjà au niveau maximum."));
+        if let Some(upgrades) = &mut self.upgrades.range {
+            if upgrades.level >= max_level {
+                return Err(format!("La portée est déjà au niveau maximum."));
+            }
         }
 
         let current = self.stats.range.base;
-        self.upgrades.range.level += 1;
-        self.stats.range.base = match self.upgrades.range.value_multiplier_unit {
-            TowerUpgradeElementUnit::Percent => current * self.upgrades.range.value_multiplier,
-            TowerUpgradeElementUnit::Unit => current + self.upgrades.range.value_multiplier,
-        };
 
-        Ok(format!(
-            "🔧 Tour {} portée améliorée ({} -> {})",
-            self.tower_type_name(),
-            current,
-            self.stats.range.base
-        ))
+        if let Some(upgrades) = &mut self.upgrades.range {
+            upgrades.level += 1;
+            self.stats.range.base = match upgrades.value_multiplier_unit {
+                TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
+                TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
+            };
+
+            Ok(format!(
+                "🔧 Tour {} portée améliorée ({} -> {})",
+                self.tower_type_name(),
+                current,
+                self.stats.range.base
+            ))
+        } else {
+            Err(format!("La portée ne peut pas être améliorée."))
+        }
     }
 
     /// Retourne le coût d'amélioration en fonction du niveau actuel
@@ -266,9 +288,9 @@ impl Tower {
 
     pub fn upgrade_cost_for_attribute(&self, upgrade_type: UpgradeType) -> u32 {
         let level = match upgrade_type {
-            UpgradeType::Damage => self.upgrades.damage.level,
-            UpgradeType::AttackSpeed => self.upgrades.attacks_speed.level,
-            UpgradeType::Range => self.upgrades.range.level,
+            UpgradeType::Damage => self.upgrades.damage.as_ref().unwrap().level,
+            UpgradeType::AttackSpeed => self.upgrades.attacks_speed.as_ref().unwrap().level,
+            UpgradeType::Range => self.upgrades.range.as_ref().unwrap().level,
         };
 
         // Vérifier si on a atteint le niveau maximum
@@ -287,9 +309,15 @@ impl Tower {
         let base = (self.upgrades.base_cost as f32 * 1.3_f32.powi(level as i32)).round() as u32;
 
         let synergy_factor = match upgrade_type {
-            UpgradeType::Damage => self.upgrades.damage.price_multiplier,
-            UpgradeType::AttackSpeed => self.upgrades.attacks_speed.price_multiplier,
-            UpgradeType::Range => self.upgrades.range.price_multiplier,
+            UpgradeType::Damage => self.upgrades.damage.as_ref().unwrap().price_multiplier,
+            UpgradeType::AttackSpeed => {
+                self.upgrades
+                    .attacks_speed
+                    .as_ref()
+                    .unwrap()
+                    .price_multiplier
+            }
+            UpgradeType::Range => self.upgrades.range.as_ref().unwrap().price_multiplier,
         };
 
         (base as f32 * synergy_factor).round() as u32
@@ -306,6 +334,7 @@ impl Tower {
             TowerKind::Lightning => "Éclair",
             TowerKind::Ice => "Glace",
             TowerKind::Poison => "Poison",
+            TowerKind::Sentinel => "Sentinelle",
         }
     }
 
@@ -315,6 +344,11 @@ impl Tower {
 
         // Mettre à jour le temps du dernier tir
         self.last_attack = current_time;
+
+        if let Some(on_action) = self.on_action.take() {
+            on_action(wave, self).unwrap();
+            self.on_action = Some(on_action);
+        }
 
         // Sélectionner les cibles primaires en fonction de la stratégie
         match self.meta.target_selection {
@@ -363,7 +397,7 @@ impl Tower {
                 }
 
                 // Si la tourelle fait des AOE, appliquer des dégâts aux monstres proches de la cible
-                if self.meta.aoe {
+                if let Some(aoe) = &self.meta.aoe {
                     let target_pos = wave.monsters[target_idx].position;
                     // Rechercher les monstres dans le rayon de l'AOE
                     for (idx, monster) in wave.monsters.iter_mut().enumerate() {
@@ -376,18 +410,17 @@ impl Tower {
                         let distance = target_pos.distance_to(&monster.position);
 
                         // Si le monstre est dans le rayon de l'AOE
-                        if distance <= self.stats.range.base {
-                            let aoe_damage = self.stats.damage.base * 0.5; // 50% des dégâts pour l'AOE
-                            // Appliquer les effets du comportement de la tour
-                            let actual_aoe_damage = self.meta.behavior.apply(monster, aoe_damage);
-                            monster.hp -= actual_aoe_damage;
-
-                            let log_message = format!(
-                                "🔥 Effet AOE! -{:.1} HP sur {}. HP restants: {:.1}",
-                                actual_aoe_damage, monster.name, monster.hp
-                            );
-                            logs.push(log_message);
+                        if let TowerAoe::Radius(radius, damage_multiplier) = aoe {
+                            if distance <= *radius as f32 {
+                                let aoe_damage = self.stats.damage.base * damage_multiplier; // 50% des dégâts pour l'AOE
+                                // Appliquer les effets du comportement de la tour
+                                let actual_aoe_damage =
+                                    self.meta.behavior.apply(monster, aoe_damage);
+                                monster.hp -= actual_aoe_damage;
+                            }
                         }
+
+                        if let TowerAoe::Count(count, damage_multiplier) = aoe {}
                     }
                 }
             }
@@ -430,17 +463,10 @@ impl Tower {
 
     /// Retourne true si toutes les améliorations de la tour sont au niveau maximum
     pub fn is_fully_upgraded(&self) -> bool {
-        // Déterminer le niveau maximum selon le type de tour
-        let max_level = if self.meta.tower_type == TowerKind::Earth {
-            10
-        } else {
-            30
-        };
-
         // Vérifier si toutes les améliorations sont au niveau maximum
-        self.upgrades.attacks_speed.level >= max_level
-            && self.upgrades.damage.level >= max_level
-            && self.upgrades.range.level >= max_level
+        self.upgrades.attacks_speed.as_ref().unwrap().level >= 30
+            && self.upgrades.damage.as_ref().unwrap().level >= 30
+            && self.upgrades.range.as_ref().unwrap().level >= 30
     }
 }
 

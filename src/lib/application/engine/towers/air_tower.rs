@@ -23,17 +23,30 @@ impl AirTower {
                 attacks_per_second: TowerStatElement::new(5.0, 1),
             },
             meta: TowerMeta {
-                aoe: true,
+                aoe: None,
                 behavior: TowerBehavior::Basic,
                 target_selection: TargetSelection::Nearest,
                 tower_type: TowerKind::Fire,
             },
             upgrades: TowerUpgrades::new(
                 45,
-                TowerUpgradeElement::new(3.0, 0.5, TowerUpgradeElementUnit::Unit),
-                TowerUpgradeElement::new(12.0, 1.25, TowerUpgradeElementUnit::Unit),
-                TowerUpgradeElement::new(1.0, 0.2, TowerUpgradeElementUnit::Unit),
+                Some(TowerUpgradeElement::new(
+                    3.0,
+                    0.5,
+                    TowerUpgradeElementUnit::Unit,
+                )),
+                Some(TowerUpgradeElement::new(
+                    12.0,
+                    1.25,
+                    TowerUpgradeElementUnit::Unit,
+                )),
+                Some(TowerUpgradeElement::new(
+                    1.0,
+                    0.2,
+                    TowerUpgradeElementUnit::Unit,
+                )),
             ),
+            on_action: None,
         }
     }
 }

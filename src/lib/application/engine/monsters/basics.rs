@@ -6,7 +6,7 @@ pub fn goblin(position: Position) -> Monster {
         "Gobelin".to_string(),
         50.0,
         position,
-        1.0,
+        5.0,
         Resistances::default(),
         1,
     )

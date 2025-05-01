@@ -142,6 +142,7 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
                 TowerKind::Lightning => 'L',
                 TowerKind::Ice => 'I',
                 TowerKind::Poison => 'P',
+                TowerKind::Sentinel => 'S',
             };
 
             map_chars[pos.y as usize][pos.x as usize] = tower_char;
@@ -365,6 +366,12 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                             tower_type.cost()
                         )
                     }
+                    TowerType::Sentinel => {
+                        format!(
+                            "Tour de sentinelle (S) - Détection - 💰 {}",
+                            tower_type.cost()
+                        )
+                    }
                 };
 
                 // Mettre en surbrillance la tour sélectionnée
@@ -402,6 +409,7 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                     TowerType::Lightning => "de foudre",
                     TowerType::Ice => "de glace",
                     TowerType::Poison => "de poison",
+                    TowerType::Sentinel => "de sentinelle",
                 };
 
                 (
@@ -523,40 +531,94 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                             // Format pour les améliorations normales
                             let modifier = match upgrade_type {
                                 UpgradeType::AttackSpeed => {
-                                    match tower.upgrades.attacks_speed.value_multiplier_unit {
+                                    match tower
+                                        .upgrades
+                                        .attacks_speed
+                                        .as_ref()
+                                        .unwrap()
+                                        .value_multiplier_unit
+                                    {
                                         TowerUpgradeElementUnit::Percent => format!(
                                             "x{:.2}%",
-                                            tower.upgrades.attacks_speed.value_multiplier
+                                            tower
+                                                .upgrades
+                                                .attacks_speed
+                                                .as_ref()
+                                                .unwrap()
+                                                .value_multiplier
                                         ),
                                         TowerUpgradeElementUnit::Unit => format!(
                                             "+{}",
-                                            tower.upgrades.attacks_speed.value_multiplier
+                                            tower
+                                                .upgrades
+                                                .attacks_speed
+                                                .as_ref()
+                                                .unwrap()
+                                                .value_multiplier
                                         ),
                                     }
                                 }
                                 UpgradeType::Damage => {
-                                    match tower.upgrades.damage.value_multiplier_unit {
+                                    match tower
+                                        .upgrades
+                                        .damage
+                                        .as_ref()
+                                        .unwrap()
+                                        .value_multiplier_unit
+                                    {
                                         TowerUpgradeElementUnit::Percent => {
                                             format!(
                                                 "x{:.2}%",
-                                                tower.upgrades.damage.value_multiplier
+                                                tower
+                                                    .upgrades
+                                                    .damage
+                                                    .as_ref()
+                                                    .unwrap()
+                                                    .value_multiplier
                                             )
                                         }
                                         TowerUpgradeElementUnit::Unit => {
-                                            format!("+{}", tower.upgrades.damage.value_multiplier)
+                                            format!(
+                                                "+{}",
+                                                tower
+                                                    .upgrades
+                                                    .damage
+                                                    .as_ref()
+                                                    .unwrap()
+                                                    .value_multiplier
+                                            )
                                         }
                                     }
                                 }
                                 UpgradeType::Range => {
-                                    match tower.upgrades.range.value_multiplier_unit {
+                                    match tower
+                                        .upgrades
+                                        .range
+                                        .as_ref()
+                                        .unwrap()
+                                        .value_multiplier_unit
+                                    {
                                         TowerUpgradeElementUnit::Percent => {
                                             format!(
                                                 "x{:.2}%",
-                                                tower.upgrades.range.value_multiplier
+                                                tower
+                                                    .upgrades
+                                                    .range
+                                                    .as_ref()
+                                                    .unwrap()
+                                                    .value_multiplier
                                             )
                                         }
                                         TowerUpgradeElementUnit::Unit => {
-                                            format!("+{}", tower.upgrades.range.value_multiplier)
+                                            format!(
+                                                "+{}",
+                                                tower
+                                                    .upgrades
+                                                    .range
+                                                    .as_ref()
+                                                    .unwrap()
+                                                    .value_multiplier
+                                            )
                                         }
                                     }
                                 }
