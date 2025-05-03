@@ -32,11 +32,8 @@ impl Default for TargetSelection {
 /// Structure de base pour toutes les tourelles
 #[derive(Debug, Clone)]
 pub struct TowerStats {
-    /// Portée de la tourelle
     pub range: TowerStatElement,
-    /// Élément de la tourelle
     pub damage: Option<TowerStatDamageElement>,
-    /// Attaques par seconde
     pub attacks_per_second: Option<TowerStatElement>,
 }
 
@@ -319,21 +316,6 @@ impl Tower {
         };
 
         (base as f32 * synergy_factor).round() as u32
-    }
-
-    /// Retourne le type de la tour sous forme de chaîne
-    pub fn tower_type_name(&self) -> &str {
-        match self.meta.tower_type {
-            TowerKind::Basic => "Basique",
-            TowerKind::Fire => "Feu",
-            TowerKind::Water => "Eau",
-            TowerKind::Earth => "Terre",
-            TowerKind::Air => "Air",
-            TowerKind::Lightning => "Éclair",
-            TowerKind::Ice => "Glace",
-            TowerKind::Poison => "Poison",
-            TowerKind::Sentinel => "Sentinelle",
-        }
     }
 
     pub fn shoot(&mut self, wave: &mut Wave, current_time: f32) -> Vec<String> {

@@ -690,7 +690,7 @@ impl App {
         let (tower_type, level, cost_attack_speed, cost_damage, cost_range) = {
             let tower = &self.game.towers[index];
             (
-                tower.tower_type_name().to_string(),
+                tower.name.clone(),
                 tower.level,
                 tower.upgrade_cost_for_attribute(UpgradeType::AttackSpeed),
                 tower.upgrade_cost_for_attribute(UpgradeType::Damage),
@@ -823,7 +823,7 @@ impl App {
                 let tower = &self.game.towers[index];
                 self.cursor_position = tower.position;
 
-                let tower_type = tower.tower_type_name();
+                let tower_type = tower.name.clone();
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
                     tower_type, tower.level
@@ -859,7 +859,7 @@ impl App {
                 self.cursor_position = self.game.towers[index].position;
 
                 let tower = &self.game.towers[index];
-                let tower_type = tower.tower_type_name();
+                let tower_type = tower.name.clone();
 
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
@@ -898,7 +898,7 @@ impl App {
                 self.cursor_position = self.game.towers[index].position;
 
                 let tower = &self.game.towers[index];
-                let tower_type = tower.tower_type_name();
+                let tower_type = tower.name.clone();
 
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
@@ -937,7 +937,7 @@ impl App {
                 self.cursor_position = self.game.towers[index].position;
 
                 let tower = &self.game.towers[index];
-                let tower_type = tower.tower_type_name();
+                let tower_type = tower.name.clone();
 
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
@@ -976,7 +976,7 @@ impl App {
 
                 // Afficher les infos de la tour sélectionnée
                 let tower = &self.game.towers[index];
-                let tower_type = tower.tower_type_name();
+                let tower_type = tower.name.clone();
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
                     tower_type, tower.level

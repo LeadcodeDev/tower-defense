@@ -479,14 +479,16 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
 
                 if tower_index < app.game.towers.len() {
                     let tower = &app.game.towers[tower_index];
-                    let tower_type = tower.tower_type_name();
                     let position = tower.position;
                     let level = tower.level;
 
                     // Afficher d'abord les informations sur la tour
                     let tower_info = format!(
                         "Tour {} (x:{}, y:{}) - Level {}",
-                        tower_type, position.x, position.y, level
+                        tower.name.clone(),
+                        position.x,
+                        position.y,
+                        level
                     );
 
                     action_items.push(ListItem::new(Span::styled(
@@ -669,14 +671,17 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
 
                 // Afficher toutes les tours disponibles
                 for (i, tower) in app.game.towers.iter().enumerate() {
-                    let tower_type = tower.tower_type_name();
                     let position = tower.position;
                     let level = tower.level;
                     let cost = tower.upgrade_cost(level);
 
                     let tower_info = format!(
                         "Tour {} ({},{}) - Niveau {} - 💰 {} pour améliorer",
-                        tower_type, position.x, position.y, level, cost
+                        tower.name.clone(),
+                        position.x,
+                        position.y,
+                        level,
+                        cost
                     );
 
                     // Mettre en surbrillance la tour sélectionnée

@@ -418,7 +418,7 @@ impl Game {
         match self.towers[tower_index].upgrade_damage() {
             Ok(_) => {
                 self.spend_money(upgrade_cost);
-                let tower_type = self.towers[tower_index].tower_type_name();
+                let tower_type = self.towers[tower_index].name.clone();
                 self.add_log(format!("🔧 Tour {} améliorée: Dégâts +", tower_type));
                 Ok("Damage upgraded".to_string())
             }
