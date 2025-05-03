@@ -509,8 +509,20 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
 
                         // Récupérer les valeurs actuelles
                         let current_value = match upgrade_type {
-                            UpgradeType::AttackSpeed => tower.stats.attacks_per_second.base,
-                            UpgradeType::Damage => tower.stats.damage.base,
+                            UpgradeType::AttackSpeed => {
+                                if let Some(attack_speed) = &tower.stats.attacks_per_second {
+                                    attack_speed.base
+                                } else {
+                                    0.0
+                                }
+                            }
+                            UpgradeType::Damage => {
+                                if let Some(damage) = &tower.stats.damage {
+                                    damage.base
+                                } else {
+                                    0.0
+                                }
+                            }
                             UpgradeType::Range => tower.stats.range.base,
                         };
 

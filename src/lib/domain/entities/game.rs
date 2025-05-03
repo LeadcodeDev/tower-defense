@@ -380,9 +380,9 @@ impl Game {
         }
 
         match self.towers[tower_index].upgrade_attack_speed() {
-            Ok(message) => {
+            Ok(_) => {
                 self.spend_money(upgrade_cost);
-                self.add_log(message);
+                self.add_log("Attack speed upgraded".to_string());
                 Ok("Attack speed upgraded".to_string())
             }
             Err(error) => {
@@ -454,9 +454,9 @@ impl Game {
         }
 
         match self.towers[tower_index].upgrade_range() {
-            Ok(message) => {
+            Ok(_) => {
                 self.spend_money(upgrade_cost);
-                self.add_log(message);
+                self.add_log("Range upgraded".to_string());
                 Ok("Range upgraded".to_string())
             }
             Err(error) => {

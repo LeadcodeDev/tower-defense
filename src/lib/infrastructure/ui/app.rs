@@ -680,31 +680,27 @@ impl App {
             return;
         }
 
-        // Créer un menu d'amélioration pour cette tour
         let selected_upgrade = if let Some(current_menu) = &self.upgrade_menu {
-            // Si on a déjà un menu, conserver la sélection actuelle ou utiliser celle fournie
             keep_selection.unwrap_or(current_menu.selected_upgrade)
         } else {
-            // Si c'est un nouveau menu, utiliser la valeur fournie ou 0 par défaut
             keep_selection.unwrap_or(0)
         };
 
-        let tower = &self.game.towers[index];
+        // Get all the values we need first
+        let (tower_type, level, cost_attack_speed, cost_damage, cost_range) = {
+            let tower = &self.game.towers[index];
+            (
+                tower.tower_type_name().to_string(),
+                tower.level,
+                tower.upgrade_cost_for_attribute(UpgradeType::AttackSpeed),
+                tower.upgrade_cost_for_attribute(UpgradeType::Damage),
+                tower.upgrade_cost_for_attribute(UpgradeType::Range),
+            )
+        };
 
-        // Extraire les informations nécessaires
-        let tower_type = tower.tower_type_name().to_string();
-        let attacks_per_second = tower.stats.attacks_per_second.base;
-        let damage = tower.stats.damage.base;
-        let range = tower.stats.range.base;
-
-        // Récupérer les coûts pour chaque type d'amélioration
-        let cost_attack_speed = tower.upgrade_cost_for_attribute(UpgradeType::AttackSpeed);
-        let cost_damage = tower.upgrade_cost_for_attribute(UpgradeType::Damage);
-        let cost_range = tower.upgrade_cost_for_attribute(UpgradeType::Range);
-
-        // Afficher les informations sur la tour
+        // Add all logs at once
         self.game
-            .add_log(format!("🔍 Tour {} (Niveau {})", tower_type, tower.level));
+            .add_log(format!("🔍 Tour {} (Niveau {})", tower_type, level));
         self.game.add_log(format!(
             "💰 Vitesse d'attaque: {} pièces",
             cost_attack_speed
@@ -714,17 +710,29 @@ impl App {
         self.game
             .add_log(format!("💰 Portée: {} pièces", cost_range));
 
+        // Create the upgrade menu
+        let tower = &self.game.towers[index];
+
+        let mut upgrades = vec![];
+        if let Some(attacks_per_second) = &tower.stats.attacks_per_second {
+            upgrades.push((
+                UpgradeType::AttackSpeed,
+                format!("⚡️ {:.2}/s Attack speed", attacks_per_second.base),
+            ));
+        }
+        if let Some(damage) = &tower.stats.damage {
+            upgrades.push((UpgradeType::Damage, format!("💥 {:.2} Damage", damage.base)));
+        }
+
+        upgrades.push((
+            UpgradeType::Range,
+            format!("🔄 {:.2} Range", tower.stats.range.base),
+        ));
+
         self.upgrade_menu = Some(UpgradeMenu {
             tower_index: index,
             selected_upgrade,
-            available_upgrades: vec![
-                (
-                    UpgradeType::AttackSpeed,
-                    format!("⚡️ {:.2}/s Attack speed", attacks_per_second),
-                ),
-                (UpgradeType::Damage, format!("💥 {:.2} Damage", damage)),
-                (UpgradeType::Range, format!("🔭 {:.2} Range", range)),
-            ],
+            available_upgrades: upgrades,
         });
 
         self.ui_mode = UiMode::TowerUpgrade;

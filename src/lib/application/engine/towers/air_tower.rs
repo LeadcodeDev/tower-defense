@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use crate::domain::entities::{
     behavior::TowerBehavior,
     element::Element,
@@ -13,14 +15,15 @@ pub struct AirTower;
 impl AirTower {
     pub fn positionned(position: Position) -> Tower {
         Tower {
+            id: Uuid::new_v4(),
             name: "Fire Tower".to_string(),
             level: 1,
             position,
             last_attack: 0.0,
             stats: TowerStats {
                 range: TowerStatElement::new(5.0, 1),
-                damage: TowerStatDamageElement::new(25.0, 1, Element::Air),
-                attacks_per_second: TowerStatElement::new(5.0, 1),
+                damage: Some(TowerStatDamageElement::new(25.0, 1, Element::Air)),
+                attacks_per_second: Some(TowerStatElement::new(5.0, 1)),
             },
             meta: TowerMeta {
                 aoe: None,

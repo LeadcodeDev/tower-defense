@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use super::{
     behavior::TowerBehavior, element::Element, monster::Monster, position::Position, wave::Wave,
 };
@@ -33,9 +35,9 @@ pub struct TowerStats {
     /// Portée de la tourelle
     pub range: TowerStatElement,
     /// Élément de la tourelle
-    pub damage: TowerStatDamageElement,
+    pub damage: Option<TowerStatDamageElement>,
     /// Attaques par seconde
-    pub attacks_per_second: TowerStatElement,
+    pub attacks_per_second: Option<TowerStatElement>,
 }
 
 #[derive(Debug, Clone)]
@@ -156,6 +158,7 @@ pub enum TowerKind {
 
 /// Structure uniforme pour toutes les tourelles
 pub struct Tower {
+    pub id: Uuid,
     pub name: String,
     pub level: u32,
     pub stats: TowerStats,
@@ -168,8 +171,12 @@ pub struct Tower {
 
 impl Tower {
     pub fn can_shoot(&self, current_time: f32) -> bool {
-        let time_since_last_attack = current_time - self.last_attack;
-        time_since_last_attack >= 1.0 / self.stats.attacks_per_second.base
+        if let Some(attacks_per_second) = &self.stats.attacks_per_second {
+            let time_since_last_attack = current_time - self.last_attack;
+            time_since_last_attack >= 1.0 / attacks_per_second.base
+        } else {
+            true
+        }
     }
 
     pub fn upgrade_level(&mut self) -> u32 {
@@ -177,7 +184,7 @@ impl Tower {
         self.level
     }
 
-    pub fn upgrade_attack_speed(&mut self) -> Result<String, String> {
+    pub fn upgrade_attack_speed(&mut self) -> Result<(), String> {
         // Niveau maximum selon le type de tour
         let max_level = if self.meta.tower_type == TowerKind::Earth {
             10
@@ -191,28 +198,29 @@ impl Tower {
             }
         }
 
-        let current = self.stats.attacks_per_second.base;
+        if let Some(attacks_per_second) = &self.stats.attacks_per_second {
+            let current = attacks_per_second.base;
 
-        if let Some(upgrades) = &mut self.upgrades.attacks_speed {
-            upgrades.level += 1;
-            self.stats.attacks_per_second.base = match upgrades.value_multiplier_unit {
-                TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
-                TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
-            };
+            if let Some(upgrades) = &mut self.upgrades.attacks_speed {
+                upgrades.level += 1;
 
-            Ok(format!(
-                "🔧 Tour {} vitesse d'attaque améliorée ({} -> {})",
-                self.tower_type_name(),
-                current,
-                self.stats.attacks_per_second.base
-            ))
+                if let Some(attacks_per_second) = &mut self.stats.attacks_per_second {
+                    attacks_per_second.base = match upgrades.value_multiplier_unit {
+                        TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
+                        TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
+                    };
+                }
+
+                Ok(())
+            } else {
+                Err(format!("La vitesse d'attaque ne peut pas être améliorée."))
+            }
         } else {
-            Err(format!("La vitesse d'attaque ne peut pas être améliorée."))
+            Ok(())
         }
     }
 
-    pub fn upgrade_damage(&mut self) -> Result<String, String> {
-        // Niveau maximum selon le type de tour
+    pub fn upgrade_damage(&mut self) -> Result<(), String> {
         let max_level = if self.meta.tower_type == TowerKind::Earth {
             10
         } else {
@@ -223,28 +231,24 @@ impl Tower {
             return Err(format!("Les dégâts sont déjà au niveau maximum."));
         }
 
-        let current = self.stats.damage.base;
+        if let Some(damage) = &mut self.stats.damage {
+            let current = damage.base;
 
-        if let Some(upgrades) = &mut self.upgrades.damage {
-            upgrades.level += 1;
-            self.stats.damage.base = match upgrades.value_multiplier_unit {
-                TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
-                TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
-            };
+            if let Some(upgrades) = &mut self.upgrades.damage {
+                upgrades.level += 1;
+                damage.base = match upgrades.value_multiplier_unit {
+                    TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
+                    TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
+                };
+            }
 
-            Ok(format!(
-                "🔧 Tour {} dégâts améliorés ({} -> {})",
-                self.tower_type_name(),
-                current,
-                self.stats.damage.base
-            ))
+            Ok(())
         } else {
             Err(format!("Les dégâts ne peuvent pas être améliorés."))
         }
     }
 
-    pub fn upgrade_range(&mut self) -> Result<String, String> {
-        // Niveau maximum selon le type de tour
+    pub fn upgrade_range(&mut self) -> Result<(), String> {
         let max_level = if self.meta.tower_type == TowerKind::Earth {
             10
         } else {
@@ -266,18 +270,12 @@ impl Tower {
                 TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
             };
 
-            Ok(format!(
-                "🔧 Tour {} portée améliorée ({} -> {})",
-                self.tower_type_name(),
-                current,
-                self.stats.range.base
-            ))
+            Ok(())
         } else {
             Err(format!("La portée ne peut pas être améliorée."))
         }
     }
 
-    /// Retourne le coût d'amélioration en fonction du niveau actuel
     pub fn upgrade_cost(&self, level: u32) -> u32 {
         let exponential_factor = 1.5_f32.powi(level as i32);
         let linear_component = 20 * level;
@@ -383,44 +381,34 @@ impl Tower {
                     continue;
                 }
 
-                // Appliquer les dégâts à la cible primaire d'abord
-                if let Some(monster) = wave.monsters.get_mut(target_idx) {
-                    let damage = self.stats.damage.base;
-                    // Appliquer les effets du comportement de la tour
-                    let actual_damage = self.meta.behavior.apply(monster, damage);
-                    monster.hp -= actual_damage;
+                if let Some(damage) = &self.stats.damage {
+                    if let Some(monster) = wave.monsters.get_mut(target_idx) {
+                        let actual_damage = self.meta.behavior.apply(monster, damage.base);
+                        monster.hp -= actual_damage;
 
-                    logs.push(format!(
-                        "🏹 Tourelle {:?} attaque! -{:.1} HP sur {}. HP restants: {:.1}",
-                        self.stats.damage.element, actual_damage, monster.name, monster.hp
-                    ));
-                }
+                        logs.push(format!(
+                            "🏹 Tourelle {:?} attaque! -{:.1} HP sur {}. HP restants: {:.1}",
+                            damage.element, actual_damage, monster.name, monster.hp
+                        ));
+                    }
 
-                // Si la tourelle fait des AOE, appliquer des dégâts aux monstres proches de la cible
-                if let Some(aoe) = &self.meta.aoe {
-                    let target_pos = wave.monsters[target_idx].position;
-                    // Rechercher les monstres dans le rayon de l'AOE
-                    for (idx, monster) in wave.monsters.iter_mut().enumerate() {
-                        // Ne pas réappliquer les dégâts à la cible principale
-                        if idx == target_idx || !monster.active {
-                            continue;
-                        }
+                    if let Some(aoe) = &self.meta.aoe {
+                        let target_pos = wave.monsters[target_idx].position;
+                        for (idx, monster) in wave.monsters.iter_mut().enumerate() {
+                            if idx == target_idx || !monster.active {
+                                continue;
+                            }
 
-                        // Calculer la distance entre le monstre et la cible principale
-                        let distance = target_pos.distance_to(&monster.position);
-
-                        // Si le monstre est dans le rayon de l'AOE
-                        if let TowerAoe::Radius(radius, damage_multiplier) = aoe {
-                            if distance <= *radius as f32 {
-                                let aoe_damage = self.stats.damage.base * damage_multiplier; // 50% des dégâts pour l'AOE
-                                // Appliquer les effets du comportement de la tour
-                                let actual_aoe_damage =
-                                    self.meta.behavior.apply(monster, aoe_damage);
-                                monster.hp -= actual_aoe_damage;
+                            let distance = target_pos.distance_to(&monster.position);
+                            if let TowerAoe::Radius(radius, damage_multiplier) = aoe {
+                                if distance <= *radius as f32 {
+                                    let aoe_damage = damage.base * damage_multiplier; // 50% des dégâts pour l'AOE
+                                    let actual_aoe_damage =
+                                        self.meta.behavior.apply(monster, aoe_damage);
+                                    monster.hp -= actual_aoe_damage;
+                                }
                             }
                         }
-
-                        if let TowerAoe::Count(count, damage_multiplier) = aoe {}
                     }
                 }
             }

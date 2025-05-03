@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use super::{element::Element, map::Map, position::Position};
 
 #[derive(Debug, Clone)]
@@ -51,6 +53,7 @@ impl Resistances {
 
 #[derive(Debug, Clone)]
 pub struct Monster {
+    pub id: Uuid,
     pub name: String,
     pub hp: f32,
     pub position: Position,
@@ -62,6 +65,7 @@ pub struct Monster {
     pub spawn_delay: f32,    // Délai avant apparition (en secondes)
     pub active: bool,        // Indique si le monstre est actif dans la vague
     pub armor: f32, // Réduction des dégâts (0.0 = aucune réduction, 0.5 = 50% de réduction)
+    pub detected: Vec<Uuid>,
 }
 
 impl Monster {
@@ -158,17 +162,19 @@ impl Monster {
         damage_to_player: u32,
     ) -> Self {
         Self {
+            id: Uuid::new_v4(),
             name,
             hp,
             position,
             movement_speed,
-            waypoint_idx: 1,
+            waypoint_idx: 0,
             resistances,
             damage_to_player,
             distance_moved: 0.0,
             spawn_delay: 0.0, // Par défaut, pas de délai
             active: true,     // Par défaut, actif immédiatement
             armor: 0.0,       // Par défaut, pas d'armure
+            detected: Vec::new(),
         }
     }
 

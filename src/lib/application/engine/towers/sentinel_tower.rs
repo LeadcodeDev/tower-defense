@@ -1,31 +1,34 @@
+use uuid::Uuid;
+
 use crate::{
     domain::entities::{
         behavior::TowerBehavior,
         element::Element,
         position::Position,
         tower::{
-            BaseStats, TargetSelection, Tower, TowerKind, TowerMeta, TowerStatDamageElement,
-            TowerStatElement, TowerStats, TowerUpgradeElement, TowerUpgradeElementUnit,
-            TowerUpgrades,
+            TargetSelection, Tower, TowerKind, TowerMeta, TowerStatDamageElement, TowerStatElement,
+            TowerStats, TowerUpgrades,
         },
-        wave::Wave,
     },
     infrastructure::ui::notifications::Notifier,
 };
 
-pub struct SentinelTower;
+pub struct SentinelTower {
+    pub detected_monsters: Vec<Uuid>,
+}
 
 impl SentinelTower {
     pub fn positionned(position: Position) -> Tower {
         Tower {
+            id: Uuid::new_v4(),
             name: "Tour Sentinelle".to_string(),
             level: 1,
             position,
             last_attack: 0.0,
             stats: TowerStats {
                 range: TowerStatElement::new(1.0, 1), // Portée de 1 case
-                damage: TowerStatDamageElement::new(0.0, 1, Element::Neutral), // Pas de dégâts
-                attacks_per_second: TowerStatElement::new(1.0, 1), // Vérification toutes les 2 secondes
+                damage: None,
+                attacks_per_second: None, // Vérification toutes les 2 secondes
             },
             meta: TowerMeta {
                 aoe: None,
@@ -37,10 +40,17 @@ impl SentinelTower {
             on_action: Some(Box::new(|wave, tower| {
                 let mut monsters_detected = false;
 
-                for monster in wave.monsters.iter().filter(|m| m.active) {
+                let monsters = wave
+                    .monsters
+                    .iter_mut()
+                    .filter(|monster| !monster.detected.contains(&tower.id));
+
+                for monster in monsters {
                     let distance = tower.position.distance_to(&monster.position);
                     if distance <= tower.stats.range.base {
                         monsters_detected = true;
+                        monster.detected.push(tower.id);
+
                         break;
                     }
                 }
