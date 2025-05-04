@@ -1,6 +1,9 @@
 use ratatui::style::Color;
 use uuid::Uuid;
 
+use crate::domain::mediator::Mediator;
+use crate::infrastructure::ui::notifications::NotifierAdapter;
+
 use super::game::Game;
 use super::{
     behavior::TowerBehavior, element::Element, monster::Monster, position::Position, wave::Wave,
@@ -8,6 +11,7 @@ use super::{
 use std::f32;
 use std::fmt::Debug;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// Stratégie de sélection de cible pour les tourelles
 #[derive(Debug, Clone, Copy)]
@@ -212,7 +216,9 @@ pub struct Tower {
     pub meta: TowerMeta,
     pub position: Position,
     pub last_attack: f32,
-    pub on_action: Option<Rc<dyn Fn(&mut Game, &mut Tower) -> Result<(), String>>>,
+    pub on_action: Option<
+        Rc<dyn Fn(Arc<Mediator<NotifierAdapter>>, &mut Game, &mut Tower) -> Result<(), String>>,
+    >,
     pub highlight: Option<Color>,
 }
 
@@ -225,7 +231,9 @@ impl Tower {
         position: Position,
         stats: Vec<TowerStats>,
         meta: TowerMeta,
-        on_action: Option<Rc<dyn Fn(&mut Game, &mut Tower) -> Result<(), String>>>,
+        on_action: Option<
+            Rc<dyn Fn(Arc<Mediator<NotifierAdapter>>, &mut Game, &mut Tower) -> Result<(), String>>,
+        >,
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -299,7 +307,12 @@ impl Tower {
         }
     }
 
-    pub fn shoot(&mut self, game: &mut Game, current_time: f32) -> Vec<String> {
+    pub fn shoot(
+        &mut self,
+        mediator: Arc<Mediator<NotifierAdapter>>,
+        game: &mut Game,
+        current_time: f32,
+    ) -> Vec<String> {
         let mut primary_targets = Vec::new();
         let logs = Vec::new();
 
@@ -307,7 +320,7 @@ impl Tower {
         self.last_attack = current_time;
 
         if let Some(on_action) = self.on_action.take() {
-            on_action(game, self).unwrap();
+            on_action(mediator, game, self).unwrap();
             self.on_action = Some(on_action);
         }
 

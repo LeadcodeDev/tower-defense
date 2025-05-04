@@ -2,13 +2,13 @@ use std::rc::Rc;
 
 use uuid::Uuid;
 
-use crate::{
-    domain::entities::{
+use crate::domain::{
+    entities::{
         behavior::TowerBehavior,
         position::Position,
         tower::{TargetSelection, Tower, TowerKind, TowerMeta, TowerStatType, TowerStats},
     },
-    infrastructure::ui::notifications::Notifier,
+    ports::notifier::Notifier,
 };
 
 pub struct SentinelTower {
@@ -37,7 +37,7 @@ impl SentinelTower {
                 target_selection: TargetSelection::Nearest,
                 tower_type: TowerKind::Fire,
             },
-            Some(Rc::new(|game, tower| {
+            Some(Rc::new(|mediator, game, tower| {
                 let mut monsters_detected = false;
 
                 if let Some(wave) = &mut game.current_wave {
@@ -67,7 +67,7 @@ impl SentinelTower {
                         return Ok(());
                     }
 
-                    Notifier::send_notification(
+                    mediator.notifier.send_notification(
                         "⚠️ Monstre détecté",
                         &format!(
                             "Un monstre approche de la tour Sentinelle en ({}, {})",

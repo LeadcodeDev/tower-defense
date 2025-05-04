@@ -1,13 +1,14 @@
 use std::{
     collections::VecDeque,
+    sync::Arc,
     time::{Duration, Instant, SystemTime},
 };
 
 use rand::{Rng, rng};
 
 use crate::{
-    application::engine::towers::{fire_tower::FireTower, sentinel_tower::SentinelTower},
-    infrastructure::ui::notifications::Notifier,
+    domain::{mediator::Mediator, ports::notifier::Notifier},
+    infrastructure::ui::notifications::NotifierAdapter,
 };
 
 use super::{
@@ -27,6 +28,7 @@ pub struct GameLog {
 }
 
 pub struct Game {
+    pub mediator: Arc<Mediator<NotifierAdapter>>,
     pub current_map: Option<Map>,
     pub towers: Vec<Tower>,
     pub waves: Option<VecDeque<Wave>>,
@@ -42,8 +44,14 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(towers: Vec<Tower>, player_life: i32, wave_multiplier: f32) -> Self {
+    pub fn new(
+        mediator: Arc<Mediator<NotifierAdapter>>,
+        towers: Vec<Tower>,
+        player_life: i32,
+        wave_multiplier: f32,
+    ) -> Self {
         Self {
+            mediator,
             current_map: None,
             towers,
             waves: Some(VecDeque::new()),
@@ -75,16 +83,10 @@ impl Game {
 
         // Envoyer une notification pour les événements importants
         if message.contains("Game Over") || message.contains("VICTOIRE") {
-            Notifier::send_notification("Tower Defense", &message);
+            self.mediator
+                .notifier
+                .send_notification("Tower Defense", &message);
         }
-    }
-
-    pub fn add_fire_tower(&mut self, position: Position) {
-        self.towers.push(FireTower::positionned(position));
-    }
-
-    pub fn add_sentinel_tower(&mut self, position: Position) {
-        self.towers.push(SentinelTower::positionned(position));
     }
 
     pub fn remove_tower(&mut self, position: Position) {
@@ -211,7 +213,7 @@ impl Game {
 
             for tower in &mut towers {
                 if tower.can_shoot(sub_frame_time) {
-                    let tower_logs = tower.shoot(self, sub_frame_time);
+                    let tower_logs = tower.shoot(self.mediator.clone(), self, sub_frame_time);
                     logs_to_add.extend(tower_logs);
                 }
             }

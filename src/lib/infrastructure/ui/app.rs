@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::application::engine::maps::cave::CaveMap;
 use crate::application::engine::maps::desert::DesertMap;
 use crate::application::engine::maps::forest::ForestMap;
@@ -8,10 +10,12 @@ use crate::domain::entities::map::Map;
 use crate::domain::entities::tower::TowerKind;
 use crate::domain::entities::tower::{Tower, TowerStatType};
 use crate::domain::entities::{game::Game, position::Position};
+use crate::domain::mediator::Mediator;
 use color_eyre::Result;
 use crossterm::event::KeyCode;
 use rand::{rng, seq::IndexedRandom};
 
+use super::notifications::NotifierAdapter;
 use super::{
     events::{
         event::{Event, EventConfig, Events},
@@ -106,6 +110,7 @@ impl UpgradeMenu {
 
 /// Représente l'état global de l'application TUI
 pub struct App {
+    pub mediator: Arc<Mediator<NotifierAdapter>>,
     pub running: bool,
     pub game: Game,
     pub current_view: View,
@@ -139,7 +144,7 @@ pub enum View {
 
 impl App {
     /// Crée une nouvelle instance de l'application avec le jeu fourni
-    pub fn new(game: Game) -> Self {
+    pub fn new(mediator: Arc<Mediator<NotifierAdapter>>, towers: Vec<Tower>) -> Self {
         // Actions par défaut
         let actions = vec![
             GameAction::BuildTower,
@@ -148,16 +153,13 @@ impl App {
         ];
 
         Self {
+            mediator: mediator.clone(),
             running: true,
-            game,
+            game: Game::new(mediator.clone(), towers.clone(), 10, 1.0),
             current_view: View::MainMenu,
             selected_index: 0,
             available_actions: actions,
-            available_towers: vec![
-                FireTower::positionned(Position::new(0, 0)),
-                SentinelTower::positionned(Position::new(0, 0)),
-                MineTower::positionned(Position::new(0, 0)),
-            ],
+            available_towers: towers,
             ui_mode: UiMode::Normal,
             cursor_position: Position::new(5, 5),
             selected_tower: None,
@@ -442,7 +444,7 @@ impl App {
                     let selected_map = self.available_maps[self.selected_index].clone();
 
                     self.selected_map = Some(selected_map.clone());
-                    self.game = Game::new(vec![], 10, 1.0);
+                    self.game = Game::new(self.mediator.clone(), vec![], 10, 1.0);
                     self.game.current_map = Some(selected_map);
 
                     self.set_view(View::Game);
@@ -472,7 +474,7 @@ impl App {
             }
         }
 
-        self.game = Game::new(vec![], 10, 1.0);
+        self.game = Game::new(self.mediator.clone(), vec![], 10, 1.0);
         self.game.current_map = Some(map);
 
         self.ui_mode = UiMode::Normal;

@@ -1,20 +1,28 @@
 use notify_rust::Notification;
 use std::process::Command;
 
-pub struct Notifier;
+use crate::domain::ports::notifier::Notifier;
 
-impl Notifier {
-    pub fn can_send_message() -> bool {
+pub struct NotifierAdapter;
+
+impl NotifierAdapter {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Notifier for NotifierAdapter {
+    fn can_send_message(&self) -> bool {
         // First check if DND is enabled
-        if Notifier::is_dnd_enabled().unwrap_or(false) {
+        if self.is_dnd_enabled().unwrap_or(false) {
             return false;
         }
 
         // Then check if notifications are enabled
-        Notifier::request_permission()
+        self.request_permission()
     }
 
-    fn is_dnd_enabled() -> Result<bool, String> {
+    fn is_dnd_enabled(&self) -> Result<bool, String> {
         let output = if cfg!(target_os = "macos") {
             Command::new("defaults")
                 .arg("read")
@@ -41,7 +49,7 @@ impl Notifier {
         }
     }
 
-    pub fn request_permission() -> bool {
+    fn request_permission(&self) -> bool {
         let nc_output = if cfg!(target_os = "macos") {
             Command::new("defaults")
                 .arg("read")
@@ -67,8 +75,8 @@ impl Notifier {
         true // If we can't check, assume notifications are enabled
     }
 
-    pub fn send_notification(title: &str, message: &str) {
-        if !Notifier::can_send_message() {
+    fn send_notification(&self, title: &str, message: &str) {
+        if !self.can_send_message() {
             return;
         }
 

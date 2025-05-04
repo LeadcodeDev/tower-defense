@@ -28,7 +28,7 @@ impl MineTower {
                 target_selection: TargetSelection::Nearest,
                 tower_type: TowerKind::Fire,
             },
-            Some(Rc::new(|game, tower| {
+            Some(Rc::new(|_, game, tower| {
                 tower.highlight = if tower.highlight.is_some() {
                     None
                 } else {

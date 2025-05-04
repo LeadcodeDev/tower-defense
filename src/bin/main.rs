@@ -1,33 +1,33 @@
+use std::sync::Arc;
+
 use rust_tower::{
-    domain::entities::{game::Game, wave::Wave},
-    infrastructure::ui::{
-        app::{App, View},
-        tui::Tui,
+    application::engine::towers::{
+        fire_tower::FireTower, mine_tower::MineTower, sentinel_tower::SentinelTower,
     },
+    domain::{entities::position::Position, mediator::Mediator},
+    infrastructure::ui::{app::App, notifications::NotifierAdapter, tui::Tui},
 };
 
 fn main() -> color_eyre::Result<()> {
-    // Initialiser color-eyre pour une gestion d'erreur améliorée
+    let notifier = NotifierAdapter::new();
+    let mediator = Arc::new(Mediator::new(notifier));
+
     color_eyre::install()?;
 
-    // Créer le jeu sous-jacent
-    let game = create_game();
+    let mut app = App::new(
+        mediator,
+        vec![
+            FireTower::positionned(Position::new(0, 0)),
+            SentinelTower::positionned(Position::new(0, 0)),
+            MineTower::positionned(Position::new(0, 0)),
+        ],
+    );
 
-    // Créer notre application TUI
-    let mut app = App::new(game);
-    app.current_view = View::MainMenu; // Commencer par le menu principal
-
-    // Initialiser TUI
     let mut tui = Tui::new()?;
     tui.init()?;
 
-    // Configurer le gestionnaire d'événements
     app.run(&mut tui)?;
-
     tui.exit()?;
-    Ok(())
-}
 
-fn create_game() -> Game {
-    Game::new(vec![], 10, 1.0)
+    Ok(())
 }
