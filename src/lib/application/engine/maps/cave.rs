@@ -12,6 +12,8 @@ impl CaveMap {
         Map::new(
             "Caverne Profonde".to_string(),
             "Une caverne profonde et sombre".to_string(),
+            "🌵".to_string(),
+            "🚀".to_string(),
             vec![
                 start_position,
                 Position::new(3, 5),
@@ -23,9 +25,11 @@ impl CaveMap {
                 Position::new(18, 12),
                 Position::new(18, 7),
                 Position::new(20, 7),
+                Position::new(20, 12),
+                Position::new(40, 17),
             ],
-            20, // largeur de la carte
-            15, // hauteur de la carte
+            40, // largeur de la carte
+            17, // hauteur de la carte
             vec![goblin(start_position), orc(start_position)],
             None,
         )

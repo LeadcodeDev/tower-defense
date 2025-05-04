@@ -295,8 +295,13 @@ impl App {
     /// Déplace le curseur sur la carte
     pub fn move_cursor(&mut self, dx: i32, dy: i32) {
         if self.ui_mode == UiMode::Placement {
-            let new_x = (self.cursor_position.x + dx).max(0).min(20);
-            let new_y = (self.cursor_position.y + dy).max(0).min(15);
+            let current_map = self.game.current_map.as_ref().unwrap();
+            let new_x = (self.cursor_position.x + dx)
+                .max(0)
+                .min(current_map.width.try_into().unwrap());
+            let new_y = (self.cursor_position.y + dy)
+                .max(0)
+                .min(current_map.height.try_into().unwrap());
             self.cursor_position = Position::new(new_x, new_y);
         }
     }

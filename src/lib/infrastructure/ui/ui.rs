@@ -83,27 +83,22 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
     if let Some(map) = &app.game.current_map {
         let game = &app.game;
 
-        // Créer une matrice pour stocker les caractères et une autre pour les styles
         let mut map_chars = vec![vec!["  "; area.width as usize]; area.height as usize];
         let mut map_styles =
             vec![vec![Style::default(); area.width as usize]; area.height as usize];
 
-        // Marquer toutes les cellules du chemin avec un style spécial
         for waypoint in &map.waypoints {
             if waypoint.x < area.width as i32 && waypoint.y < area.height as i32 {
-                map_chars[waypoint.y as usize][waypoint.x as usize] = "💚";
                 map_styles[waypoint.y as usize][waypoint.x as usize] =
                     Style::default().bg(Color::DarkGray).fg(Color::White);
             }
         }
 
-        // Créer un chemin continu entre les waypoints
         if map.waypoints.len() > 1 {
             for i in 0..map.waypoints.len() - 1 {
                 let start = map.waypoints[i];
                 let end = map.waypoints[i + 1];
 
-                // Dessiner une ligne entre les deux waypoints
                 let dx = (end.x - start.x).signum();
                 let dy = (end.y - start.y).signum();
 
@@ -130,6 +125,12 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
                 }
             }
         }
+
+        let first_waypoint = map.waypoints[0];
+        let last_waypoint = map.waypoints[map.waypoints.len() - 1];
+
+        map_chars[first_waypoint.y as usize][first_waypoint.x as usize] = &map.start_symbol;
+        map_chars[last_waypoint.y as usize][last_waypoint.x as usize] = &map.end_symbol;
 
         // Dessiner les tourelles
         for (i, tower) in game.towers.iter().enumerate() {
@@ -178,7 +179,6 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
             let cursor_x = app.cursor_position.x;
             let cursor_y = app.cursor_position.y;
             if cursor_x < area.width as i32 && cursor_y < area.height as i32 {
-                // En mode placement normal, afficher X, en mode sélection sur carte afficher un symbole différent
                 let is_upgrade_mode = app.selected_index < app.available_actions.len()
                     && app.selected_tower.is_none()
                     && app.available_actions[app.selected_index] == GameAction::UpgradeTower;

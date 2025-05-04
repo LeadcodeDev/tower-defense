@@ -8,6 +8,8 @@ impl<T: Fn() -> f32 + Clone> TerrainModifier for T {}
 pub struct Map {
     pub name: String,
     pub description: String,
+    pub start_symbol: String,
+    pub end_symbol: String,
     pub waypoints: Vec<Position>,
     pub width: u32,
     pub height: u32,
@@ -19,6 +21,8 @@ impl Map {
     pub fn new(
         name: String,
         description: String,
+        start_symbol: String,
+        end_symbol: String,
         waypoints: Vec<Position>,
         width: u32,
         height: u32,
@@ -28,6 +32,8 @@ impl Map {
         Self {
             name,
             description,
+            start_symbol,
+            end_symbol,
             waypoints,
             width,
             height,

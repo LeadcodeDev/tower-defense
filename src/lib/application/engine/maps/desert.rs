@@ -12,6 +12,8 @@ impl DesertMap {
         Map::new(
             "Désert Aride".to_string(),
             "Un désert aride et hostile".to_string(),
+            "🌵".to_string(),
+            "🚀".to_string(),
             vec![
                 start_position,
                 Position::new(5, 10),
