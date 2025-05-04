@@ -1,10 +1,14 @@
 use crate::application::engine::maps::cave::CaveMap;
 use crate::application::engine::maps::desert::DesertMap;
 use crate::application::engine::maps::forest::ForestMap;
+use crate::application::engine::towers::air_tower::AirTower;
+use crate::application::engine::towers::basic_tower::BasicTower;
+use crate::application::engine::towers::earth_tower::EarthTower;
+use crate::application::engine::towers::fire_tower::FireTower;
 use crate::application::engine::towers::ice_tower::IceTower;
 use crate::application::engine::towers::sentinel_tower::SentinelTower;
 use crate::domain::entities::map::Map;
-use crate::domain::entities::tower::UpgradeType;
+use crate::domain::entities::tower::{Tower, UpgradeType};
 use crate::domain::entities::{game::Game, position::Position};
 use crate::domain::entities::{tower::TowerKind, wave::Wave};
 use color_eyre::Result;
@@ -109,33 +113,19 @@ impl UpgradeMenu {
 
 /// Représente l'état global de l'application TUI
 pub struct App {
-    /// Indique si l'application doit continuer à s'exécuter
     pub running: bool,
-    /// Le jeu sous-jacent
     pub game: Game,
-    /// Vue courante de l'application
     pub current_view: View,
-    /// Index sélectionné dans le menu actuel
     pub selected_index: usize,
-    /// Liste des actions disponibles
     pub available_actions: Vec<GameAction>,
-    /// Liste des types de tours disponibles
-    pub available_towers: Vec<TowerType>,
-    /// Mode d'interface actuel
+    pub available_towers: Vec<Tower>,
     pub ui_mode: UiMode,
-    /// Position du curseur sur la carte
     pub cursor_position: Position,
-    /// Type de tour sélectionné
-    pub selected_tower: Option<TowerType>,
-    /// Menu d'amélioration des tours
+    pub selected_tower: Option<Tower>,
     pub upgrade_menu: Option<UpgradeMenu>,
-    /// Mode de sélection des tours (liste ou carte)
     pub tower_selection_on_map: bool,
-    /// Index de la tourelle sélectionnée sur la carte
     pub selected_tower_index: Option<usize>,
-    /// Les cartes disponibles
     pub available_maps: Vec<Map>,
-    /// La carte sélectionnée
     pub selected_map: Option<Map>,
 }
 
@@ -164,24 +154,19 @@ impl App {
             GameAction::RemoveTower,
         ];
 
-        // Tours disponibles
-        let towers = vec![
-            TowerType::Basic,
-            TowerType::Fire,
-            TowerType::Water,
-            TowerType::Earth,
-            TowerType::Air,
-            TowerType::Sentinel,
-        ];
-
-        // Cartes disponibles
         Self {
             running: true,
             game,
             current_view: View::MainMenu,
             selected_index: 0,
             available_actions: actions,
-            available_towers: towers,
+            available_towers: vec![
+                BasicTower::positionned(Position::new(0, 0)),
+                FireTower::positionned(Position::new(0, 0)),
+                EarthTower::positionned(Position::new(0, 0)),
+                AirTower::positionned(Position::new(0, 0)),
+                SentinelTower::positionned(Position::new(0, 0)),
+            ],
             ui_mode: UiMode::Normal,
             cursor_position: Position::new(5, 5),
             selected_tower: None,
@@ -382,32 +367,28 @@ impl App {
                     }
                     UiMode::TowerSelection => {
                         if self.tower_selection_on_map {
-                            // Si on est en mode sélection sur la carte et qu'on appuie sur Enter
                             if let Some(tower_index) = self.selected_tower_index {
-                                // Ouvrir le menu d'amélioration pour cette tour
                                 self.upgrade_tower(tower_index, None);
-                                // Passer en mode amélioration
+
                                 self.ui_mode = UiMode::TowerUpgrade;
                                 self.tower_selection_on_map = false;
                             }
                         } else {
-                            // En mode sélection de tour normal, choisir un type de tour
                             if self.selected_index < self.available_towers.len() {
-                                let tower_type = self.available_towers[self.selected_index];
-                                self.selected_tower = Some(tower_type);
+                                let tower = self.available_towers[self.selected_index].clone();
+
+                                self.selected_tower = Some(tower);
                                 self.ui_mode = UiMode::Placement; // Passer en mode placement
                             }
                         }
                     }
                     UiMode::Placement => {
-                        // Vérifier si on est en mode amélioration
                         let is_upgrade_mode = self.selected_index < self.available_actions.len()
                             && self.selected_tower.is_none()
                             && self.available_actions[self.selected_index]
                                 == GameAction::UpgradeTower;
 
                         if is_upgrade_mode {
-                            // Chercher une tour à la position du curseur
                             let mut found_tower = false;
                             for (idx, tower) in self.game.towers.iter().enumerate() {
                                 if tower.position.x == self.cursor_position.x
@@ -424,34 +405,13 @@ impl App {
                                     "Aucune tour à cette position pour amélioration.".to_string(),
                                 );
                             }
-                        } else if let Some(tower_type) = self.selected_tower {
-                            // Placer la tour selon son type
-                            match tower_type {
-                                TowerType::Basic => self.add_basic_tower(self.cursor_position),
-                                TowerType::Fire => self.add_fire_tower(self.cursor_position),
-                                TowerType::Water => self.add_water_tower(self.cursor_position),
-                                TowerType::Earth => self.add_earth_tower(self.cursor_position),
-                                TowerType::Air => self.add_air_tower(self.cursor_position),
-                                TowerType::Lightning => {
-                                    self.add_lightning_tower(self.cursor_position)
-                                }
-                                TowerType::Ice => self.add_ice_tower(self.cursor_position),
-                                TowerType::Poison => self.add_poison_tower(self.cursor_position),
-                                TowerType::Sentinel => {
-                                    if let Err(e) = self.add_sentinel_tower(self.cursor_position) {
-                                        self.game.add_log(format!("❌ {}", e));
-                                    }
-                                }
-                            }
+                        } else if let Some(tower) = self.selected_tower.clone() {
+                            self.add_tower(tower, self.cursor_position);
 
-                            // Retourner au mode normal après le placement
                             self.ui_mode = UiMode::Normal;
                             self.selected_tower = None;
                         } else {
-                            // Si pas de tour sélectionnée et pas en mode amélioration, supprimer la tour à cette position
                             self.remove_tower(self.cursor_position);
-
-                            // Retourner au mode normal après la suppression
                             self.ui_mode = UiMode::Normal;
                         }
                     }
@@ -486,11 +446,10 @@ impl App {
                 }
             }
             View::MapSelection => {
-                // Sélectionner une carte
                 if self.selected_index < self.available_maps.len() {
                     let selected_map = self.available_maps[self.selected_index].clone();
-                    self.selected_map = Some(selected_map.clone());
 
+                    self.selected_map = Some(selected_map.clone());
                     self.game = Game::new(vec![], 10, 1.0);
                     self.game.current_map = Some(selected_map);
 
@@ -503,12 +462,8 @@ impl App {
                 _ => {}
             },
             View::GameOver => match self.selected_index {
-                0 => {
-                    self.set_view(View::MapSelection);
-                }
-                1 => {
-                    self.quit();
-                }
+                0 => self.set_view(View::MapSelection),
+                1 => self.quit(),
                 _ => {}
             },
         }
@@ -533,83 +488,8 @@ impl App {
         self.selected_tower = None;
     }
 
-    pub fn add_basic_tower(&mut self, position: Position) {
-        if self.game.has_enough_money(TowerType::Basic.cost()) {
-            if !self.is_position_valid(&position) {
-                self.game.add_log(
-                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
-                );
-                return;
-            }
-
-            if self.game.spend_money(TowerType::Basic.cost()) {
-                self.game.add_basic_tower(position);
-            }
-        }
-    }
-
-    pub fn add_fire_tower(&mut self, position: Position) {
-        if self.game.has_enough_money(TowerType::Fire.cost()) {
-            if !self.is_position_valid(&position) {
-                self.game.add_log(
-                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
-                );
-                return;
-            }
-
-            if self.game.spend_money(TowerType::Fire.cost()) {
-                self.game.add_fire_tower(position);
-            }
-        }
-    }
-
-    pub fn add_water_tower(&mut self, position: Position) {
-        if self.game.has_enough_money(TowerType::Water.cost()) {
-            if !self.is_position_valid(&position) {
-                self.game.add_log(
-                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
-                );
-                return;
-            }
-
-            if self.game.spend_money(TowerType::Water.cost()) {
-                self.game.add_water_tower(position);
-            }
-        }
-    }
-
-    pub fn add_earth_tower(&mut self, position: Position) {
-        if self.game.has_enough_money(TowerType::Earth.cost()) {
-            if !self.is_position_valid(&position) {
-                self.game.add_log(
-                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
-                );
-                return;
-            }
-
-            if self.game.spend_money(TowerType::Earth.cost()) {
-                self.game.add_earth_tower(position);
-            }
-        }
-    }
-
-    pub fn add_air_tower(&mut self, position: Position) {
-        if self.game.has_enough_money(TowerType::Air.cost()) {
-            if !self.is_position_valid(&position) {
-                self.game.add_log(
-                    "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
-                );
-                return;
-            }
-
-            if self.game.spend_money(TowerType::Air.cost()) {
-                self.game.add_air_tower(position);
-            }
-        }
-    }
-
-    pub fn add_sentinel_tower(&mut self, position: Position) -> Result<(), String> {
-        if !self.game.has_enough_money(TowerType::Sentinel.cost()) {
+    pub fn add_tower(&mut self, tower: Tower, position: Position) -> Result<(), String> {
+        if !self.game.has_enough_money(tower.cost) {
             return Err("Pas assez d'argent".to_string());
         }
 
@@ -617,39 +497,21 @@ impl App {
             return Err("Position invalide".to_string());
         }
 
-        if self.game.spend_money(TowerType::Sentinel.cost()) {
-            let tower = SentinelTower::positionned(position);
-            self.game.towers.push(tower);
+        if self.game.spend_money(tower.cost) {
+            let mut new_tower = tower.clone();
+            new_tower.position = position;
+            self.game.towers.push(new_tower);
+
             self.game.add_log(format!(
-                "🏗️ Tour sentinelle construite en ({}, {})",
-                position.x, position.y
+                "{} placed at [{}, {}]",
+                tower.name, position.x, position.y
             ));
+
             Ok(())
         } else {
             Err("Erreur lors de la construction".to_string())
         }
     }
-
-    pub fn add_lightning_tower(&mut self, position: Position) {}
-
-    pub fn add_ice_tower(&mut self, position: Position) {
-        if self.game.has_enough_money(TowerType::Ice.cost()) {
-            if self.game.spend_money(TowerType::Ice.cost()) {
-                // Create an Ice tower implementation
-                let tower = IceTower::positionned(position);
-                self.game.towers.push(tower);
-                self.game.add_log(format!(
-                    "Tour de glace placée en [{}, {}]",
-                    position.x, position.y
-                ));
-            }
-        } else {
-            self.game
-                .add_log("Pas assez d'argent pour cette tour!".to_string());
-        }
-    }
-
-    pub fn add_poison_tower(&mut self, position: Position) {}
 
     pub fn remove_tower(&mut self, position: Position) {
         self.game.remove_tower(position);

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use uuid::Uuid;
 
 use crate::{
@@ -7,7 +9,7 @@ use crate::{
         position::Position,
         tower::{
             TargetSelection, Tower, TowerKind, TowerMeta, TowerStatDamageElement, TowerStatElement,
-            TowerStats, TowerUpgrades,
+            TowerStats, TowerUpgradeElement, TowerUpgradeElementUnit, TowerUpgrades,
         },
     },
     infrastructure::ui::notifications::Notifier,
@@ -19,25 +21,25 @@ pub struct SentinelTower {
 
 impl SentinelTower {
     pub fn positionned(position: Position) -> Tower {
-        Tower {
-            id: Uuid::new_v4(),
-            name: "Tour Sentinelle".to_string(),
-            level: 1,
+        Tower::new(
+            "Sentinel Tower".to_string(),
+            "🔭".to_string(),
+            1,
+            45,
             position,
-            last_attack: 0.0,
-            stats: TowerStats {
-                range: TowerStatElement::new(1.0, 1), // Portée de 1 case
+            TowerStats {
+                range: TowerStatElement::new(1.0, 1),
                 damage: None,
-                attacks_per_second: None, // Vérification toutes les 2 secondes
+                attacks_per_second: None,
             },
-            meta: TowerMeta {
+            TowerUpgrades::new(45, None, None, None),
+            TowerMeta {
                 aoe: None,
                 behavior: TowerBehavior::Basic,
                 target_selection: TargetSelection::Nearest,
-                tower_type: TowerKind::Sentinel,
+                tower_type: TowerKind::Fire,
             },
-            upgrades: TowerUpgrades::new(50, None, None, None),
-            on_action: Some(Box::new(|wave, tower| {
+            Some(Rc::new(|wave, tower| {
                 let mut monsters_detected = false;
 
                 let monsters = wave
@@ -69,6 +71,6 @@ impl SentinelTower {
 
                 Ok(())
             })),
-        }
+        )
     }
 }

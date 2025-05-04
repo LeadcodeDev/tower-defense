@@ -55,6 +55,7 @@ impl Resistances {
 pub struct Monster {
     pub id: Uuid,
     pub name: String,
+    pub symbol: String,
     pub hp: f32,
     pub position: Position,
     pub movement_speed: f32, // Cases par seconde (larger = faster)
@@ -154,6 +155,7 @@ impl Monster {
 
     pub fn new(
         name: String,
+        symbol: String,
         hp: f32,
         position: Position,
         movement_speed: f32,
@@ -163,6 +165,7 @@ impl Monster {
         Self {
             id: Uuid::new_v4(),
             name,
+            symbol,
             hp,
             position,
             movement_speed,

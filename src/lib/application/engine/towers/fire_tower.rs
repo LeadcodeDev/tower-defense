@@ -14,24 +14,18 @@ pub struct FireTower;
 
 impl FireTower {
     pub fn positionned(position: Position) -> Tower {
-        Tower {
-            id: Uuid::new_v4(),
-            name: "Fire Tower".to_string(),
-            level: 1,
+        Tower::new(
+            "Fire Tower".to_string(),
+            "🔥".to_string(),
+            1,
+            45,
             position,
-            last_attack: 0.0,
-            stats: TowerStats {
+            TowerStats {
                 range: TowerStatElement::new(5.0, 1),
-                damage: Some(TowerStatDamageElement::new(25.0, 1, Element::Fire)),
+                damage: Some(TowerStatDamageElement::new(25.0, 1, Element::Air)),
                 attacks_per_second: Some(TowerStatElement::new(5.0, 1)),
             },
-            meta: TowerMeta {
-                aoe: Some(TowerAoe::Radius(1, 0.5)),
-                behavior: TowerBehavior::Basic,
-                target_selection: TargetSelection::Flying,
-                tower_type: TowerKind::Fire,
-            },
-            upgrades: TowerUpgrades::new(
+            TowerUpgrades::new(
                 45,
                 Some(TowerUpgradeElement::new(
                     3.0,
@@ -49,7 +43,13 @@ impl FireTower {
                     TowerUpgradeElementUnit::Unit,
                 )),
             ),
-            on_action: None,
-        }
+            TowerMeta {
+                aoe: None,
+                behavior: TowerBehavior::Basic,
+                target_selection: TargetSelection::Nearest,
+                tower_type: TowerKind::Fire,
+            },
+            None,
+        )
     }
 }

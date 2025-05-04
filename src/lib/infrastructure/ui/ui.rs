@@ -84,14 +84,14 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
         let game = &app.game;
 
         // Créer une matrice pour stocker les caractères et une autre pour les styles
-        let mut map_chars = vec![vec![' '; area.width as usize]; area.height as usize];
+        let mut map_chars = vec![vec!["  "; area.width as usize]; area.height as usize];
         let mut map_styles =
             vec![vec![Style::default(); area.width as usize]; area.height as usize];
 
         // Marquer toutes les cellules du chemin avec un style spécial
         for waypoint in &map.waypoints {
             if waypoint.x < area.width as i32 && waypoint.y < area.height as i32 {
-                map_chars[waypoint.y as usize][waypoint.x as usize] = '.';
+                map_chars[waypoint.y as usize][waypoint.x as usize] = "💚";
                 map_styles[waypoint.y as usize][waypoint.x as usize] =
                     Style::default().bg(Color::DarkGray).fg(Color::White);
             }
@@ -114,7 +114,7 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
                 while x != end.x {
                     x += dx;
                     if x >= 0 && x < area.width as i32 && y >= 0 && y < area.height as i32 {
-                        map_chars[y as usize][x as usize] = ' ';
+                        map_chars[y as usize][x as usize] = "  ";
                         map_styles[y as usize][x as usize] =
                             Style::default().bg(Color::DarkGray).fg(Color::White);
                     }
@@ -123,7 +123,7 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
                 while y != end.y {
                     y += dy;
                     if x >= 0 && x < area.width as i32 && y >= 0 && y < area.height as i32 {
-                        map_chars[y as usize][x as usize] = ' ';
+                        map_chars[y as usize][x as usize] = "  ";
                         map_styles[y as usize][x as usize] =
                             Style::default().bg(Color::DarkGray).fg(Color::White);
                     }
@@ -135,19 +135,7 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
         for (i, tower) in game.towers.iter().enumerate() {
             let pos = tower.position;
             if pos.x < area.width as i32 && pos.y < area.height as i32 {
-                let tower_char = match tower.meta.tower_type {
-                    TowerKind::Basic => 'B',
-                    TowerKind::Fire => 'F',
-                    TowerKind::Water => 'W',
-                    TowerKind::Earth => 'E',
-                    TowerKind::Air => 'A',
-                    TowerKind::Lightning => 'L',
-                    TowerKind::Ice => 'I',
-                    TowerKind::Poison => 'P',
-                    TowerKind::Sentinel => 'S',
-                };
-
-                map_chars[pos.y as usize][pos.x as usize] = tower_char;
+                map_chars[pos.y as usize][pos.x as usize] = &tower.symbol;
 
                 // Mettre en évidence la tour sélectionnée quand on est en mode sélection sur la carte
                 let is_selected = app.tower_selection_on_map
@@ -173,11 +161,11 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
                     let x = monster.position.x;
                     let y = monster.position.y;
                     if x < area.width as i32 && y < area.height as i32 {
-                        map_chars[y as usize][x as usize] = '■';
+                        map_chars[y as usize][x as usize] = &monster.symbol;
                         map_styles[y as usize][x as usize] = Style::default()
                             .fg(Color::Red)
                             .add_modifier(Modifier::BOLD)
-                            .bg(Color::DarkGray); // Garder le fond du chemin
+                            .bg(Color::DarkGray);
                     }
                 }
             }
@@ -200,7 +188,7 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
                         .bg(Color::Black)
                         .add_modifier(Modifier::BOLD);
                 } else {
-                    map_chars[cursor_y as usize][cursor_x as usize] = '×';
+                    map_chars[cursor_y as usize][cursor_x as usize] = "⭕️";
                     map_styles[cursor_y as usize][cursor_x as usize] =
                         Style::default().add_modifier(Modifier::BOLD);
                 }
@@ -334,50 +322,8 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
             frame.render_widget(actions_list, area);
         }
         UiMode::TowerSelection => {
-            // Afficher les types de tours disponibles
-            for (i, tower_type) in app.available_towers.iter().enumerate() {
-                let text = match tower_type {
-                    TowerType::Basic => format!(
-                        "Tour basique (B) - Attaque basique - 💰 {}",
-                        tower_type.cost()
-                    ),
-                    TowerType::Fire => format!(
-                        "Tour de feu (F) - Attaque en zone - 💰 {}",
-                        tower_type.cost()
-                    ),
-                    TowerType::Water => {
-                        format!("Tour d'eau (W) - Ralentissement - 💰 {}", tower_type.cost())
-                    }
-                    TowerType::Earth => {
-                        format!("Tour de terre (E) - Résistance - 💰 {}", tower_type.cost())
-                    }
-                    TowerType::Air => {
-                        format!("Tour d'air (A) - Attaque rapide - 💰 {}", tower_type.cost())
-                    }
-                    TowerType::Lightning => {
-                        format!(
-                            "Tour de foudre (L) - Étourdissement - 💰 {}",
-                            tower_type.cost()
-                        )
-                    }
-                    TowerType::Ice => {
-                        format!("Tour de glace (I) - Gel - 💰 {}", tower_type.cost())
-                    }
-                    TowerType::Poison => {
-                        format!(
-                            "Tour de poison (P) - Dégâts continus - 💰 {}",
-                            tower_type.cost()
-                        )
-                    }
-                    TowerType::Sentinel => {
-                        format!(
-                            "Tour de sentinelle (S) - Détection - 💰 {}",
-                            tower_type.cost()
-                        )
-                    }
-                };
-
-                // Mettre en surbrillance la tour sélectionnée
+            for (i, tower) in app.available_towers.iter().enumerate() {
+                let text = format!("{} - 💰 {}", tower.name, tower.cost);
                 let style = if i == app.selected_index {
                     Style::default()
                         .fg(Color::Yellow)
@@ -400,23 +346,9 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
             frame.render_widget(tower_list, area);
         }
         UiMode::Placement => {
-            // En mode placement, afficher des instructions
-            let (mode_text, instructions) = if let Some(tower_type) = app.selected_tower {
-                // Mode placement de tour
-                let tower_name = match tower_type {
-                    TowerType::Basic => "basique",
-                    TowerType::Fire => "de feu",
-                    TowerType::Water => "d'eau",
-                    TowerType::Earth => "de terre",
-                    TowerType::Air => "d'air",
-                    TowerType::Lightning => "de foudre",
-                    TowerType::Ice => "de glace",
-                    TowerType::Poison => "de poison",
-                    TowerType::Sentinel => "de sentinelle",
-                };
-
+            let (mode_text, instructions) = if let Some(tower) = &app.selected_tower {
                 (
-                    format!("Mode placement - Tour {}", tower_name),
+                    format!("Mode placement - Tour {}", tower.name),
                     vec![
                         Line::from(""),
                         Line::from("Utilisez les flèches pour positionner le curseur"),

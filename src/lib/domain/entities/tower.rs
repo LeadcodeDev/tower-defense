@@ -5,6 +5,7 @@ use super::{
 };
 use std::f32;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 /// Stratégie de sélection de cible pour les tourelles
 #[derive(Debug, Clone, Copy)]
@@ -154,19 +155,47 @@ pub enum TowerKind {
 }
 
 /// Structure uniforme pour toutes les tourelles
+#[derive(Clone)]
 pub struct Tower {
     pub id: Uuid,
     pub name: String,
+    pub symbol: String,
     pub level: u32,
+    pub cost: u32,
     pub stats: TowerStats,
     pub upgrades: TowerUpgrades,
     pub meta: TowerMeta,
     pub position: Position,
     pub last_attack: f32,
-    pub on_action: Option<Box<dyn Fn(&mut Wave, &mut Tower) -> Result<(), String>>>,
+    pub on_action: Option<Rc<dyn Fn(&mut Wave, &mut Tower) -> Result<(), String>>>,
 }
 
 impl Tower {
+    pub fn new(
+        name: String,
+        symbol: String,
+        level: u32,
+        cost: u32,
+        position: Position,
+        stats: TowerStats,
+        upgrades: TowerUpgrades,
+        meta: TowerMeta,
+        on_action: Option<Rc<dyn Fn(&mut Wave, &mut Tower) -> Result<(), String>>>,
+    ) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            name,
+            symbol,
+            level,
+            cost,
+            stats,
+            upgrades,
+            meta,
+            position,
+            last_attack: 0.0,
+            on_action,
+        }
+    }
     pub fn can_shoot(&self, current_time: f32) -> bool {
         if let Some(attacks_per_second) = &self.stats.attacks_per_second {
             let time_since_last_attack = current_time - self.last_attack;
