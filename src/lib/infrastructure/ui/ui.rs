@@ -135,23 +135,20 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
         // Dessiner les tourelles
         for (i, tower) in game.towers.iter().enumerate() {
             let pos = tower.position;
-            if pos.x < area.width as i32 && pos.y < area.height as i32 {
-                map_chars[pos.y as usize][pos.x as usize] = &tower.symbol;
+            map_chars[pos.y as usize][pos.x as usize] = &tower.symbol;
 
-                // Mettre en évidence la tour sélectionnée quand on est en mode sélection sur la carte
-                let is_selected = app.tower_selection_on_map
-                    && app.selected_tower_index.map_or(false, |index| index == i);
+            let is_selected = app.tower_selection_on_map
+                && app.selected_tower_index.map_or(false, |index| index == i);
 
-                if is_selected {
-                    map_styles[pos.y as usize][pos.x as usize] = Style::default()
-                        .fg(Color::Green)
-                        .bg(Color::DarkGray)
-                        .add_modifier(Modifier::BOLD);
-                } else {
-                    map_styles[pos.y as usize][pos.x as usize] = Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD);
-                }
+            if is_selected {
+                map_styles[pos.y as usize][pos.x as usize] = Style::default()
+                    .bg(Color::Green)
+                    .add_modifier(Modifier::BOLD);
+            }
+
+            if let Some(highlight) = tower.highlight.clone() {
+                map_styles[pos.y as usize][pos.x as usize] =
+                    Style::default().bg(highlight).add_modifier(Modifier::BOLD);
             }
         }
 
@@ -184,13 +181,28 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
                     && app.available_actions[app.selected_index] == GameAction::UpgradeTower;
 
                 if is_upgrade_mode {
-                    map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
-                        .bg(Color::Black)
-                        .add_modifier(Modifier::BOLD);
-                } else {
-                    map_chars[cursor_y as usize][cursor_x as usize] = "⭕️";
                     map_styles[cursor_y as usize][cursor_x as usize] =
                         Style::default().add_modifier(Modifier::BOLD);
+
+                    if is_cursor_on_tower(app, cursor_x, cursor_y) {
+                        map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
+                            .bg(Color::Green)
+                            .add_modifier(Modifier::BOLD);
+                    } else {
+                        map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
+                            .bg(Color::DarkGray)
+                            .add_modifier(Modifier::BOLD);
+                    }
+                } else {
+                    map_chars[cursor_y as usize][cursor_x as usize] = "  ";
+                    map_styles[cursor_y as usize][cursor_x as usize] =
+                        if is_cursor_on_tower(app, cursor_x, cursor_y) {
+                            Style::default().bg(Color::Red).add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default()
+                                .bg(Color::Green)
+                                .add_modifier(Modifier::BOLD)
+                        };
                 }
             }
         }
@@ -288,6 +300,16 @@ fn render_monsters_bar(app: &App, frame: &mut Frame, area: Rect) {
 
     frame.render_widget(monsters_list, chunks[0]);
     frame.render_widget(instructions, chunks[1]);
+}
+
+fn is_cursor_on_tower(app: &App, cursor_x: i32, cursor_y: i32) -> bool {
+    let cursor_on_tower = app
+        .game
+        .towers
+        .iter()
+        .any(|tower| tower.position.x == cursor_x && tower.position.y == cursor_y);
+
+    cursor_on_tower
 }
 
 fn render_actions(app: &App, frame: &mut Frame, area: Rect) {

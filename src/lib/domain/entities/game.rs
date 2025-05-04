@@ -10,7 +10,7 @@ use crate::{
         air_tower::AirTower, basic_tower::BasicTower, earth_tower::EarthTower,
         fire_tower::FireTower, sentinel_tower::SentinelTower,
     },
-    infrastructure::ui::notifications::Notifier,
+    infrastructure::ui::{app::App, notifications::Notifier},
 };
 
 use super::{
@@ -201,6 +201,32 @@ impl Game {
         }
 
         let mut logs_to_add = Vec::new();
+
+        let sub_frames = 1;
+        let sub_delta = delta_time / sub_frames as f32;
+        let start_time = self.elapsed_time.clone();
+
+        let mut towers = Vec::new();
+        for i in 0..self.towers.len() {
+            if self.towers[i].can_shoot(start_time) {
+                towers.push(self.towers[i].clone());
+            }
+        }
+
+        for i in 0..sub_frames {
+            let sub_frame_time = start_time + sub_delta * i as f32;
+
+            for tower in &mut towers {
+                if tower.can_shoot(sub_frame_time) {
+                    let tower_logs = tower.shoot(self, sub_frame_time);
+                    logs_to_add.extend(tower_logs);
+                }
+            }
+        }
+
+        self.towers = towers;
+        self.elapsed_time += delta_time;
+
         if let Some(wave) = &mut self.current_wave {
             let newly_spawned = wave.update_spawns(delta_time);
 
@@ -220,22 +246,22 @@ impl Game {
                 }
             }
 
-            let sub_frames = 1;
-            let sub_delta = delta_time / sub_frames as f32;
-            let start_time = self.elapsed_time;
+            // let sub_frames = 1;
+            // let sub_delta = delta_time / sub_frames as f32;
+            // let start_time = self.elapsed_time;
 
-            for i in 0..sub_frames {
-                let sub_frame_time = start_time + sub_delta * i as f32;
+            // for i in 0..sub_frames {
+            //     let sub_frame_time = start_time + sub_delta * i as f32;
 
-                for tower in &mut self.towers {
-                    if tower.can_shoot(sub_frame_time) {
-                        let tower_logs = tower.shoot(wave, sub_frame_time);
-                        logs_to_add.extend(tower_logs);
-                    }
-                }
-            }
+            //     for tower in &mut self.towers {
+            //         if tower.can_shoot(sub_frame_time) {
+            //             let tower_logs = tower.shoot(self, sub_frame_time);
+            //             logs_to_add.extend(tower_logs);
+            //         }
+            //     }
+            // }
 
-            self.elapsed_time += delta_time;
+            // self.elapsed_time += delta_time;
 
             let mut rem = Vec::new();
             let mut wave_is_empty = false;

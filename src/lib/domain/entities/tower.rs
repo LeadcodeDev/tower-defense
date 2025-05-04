@@ -1,5 +1,9 @@
+use ratatui::style::Color;
 use uuid::Uuid;
 
+use crate::infrastructure::ui::app::App;
+
+use super::game::Game;
 use super::{
     behavior::TowerBehavior, element::Element, monster::Monster, position::Position, wave::Wave,
 };
@@ -167,7 +171,8 @@ pub struct Tower {
     pub meta: TowerMeta,
     pub position: Position,
     pub last_attack: f32,
-    pub on_action: Option<Rc<dyn Fn(&mut Wave, &mut Tower) -> Result<(), String>>>,
+    pub on_action: Option<Rc<dyn Fn(&mut Game, &mut Tower) -> Result<(), String>>>,
+    pub highlight: Option<Color>,
 }
 
 impl Tower {
@@ -180,7 +185,7 @@ impl Tower {
         stats: TowerStats,
         upgrades: TowerUpgrades,
         meta: TowerMeta,
-        on_action: Option<Rc<dyn Fn(&mut Wave, &mut Tower) -> Result<(), String>>>,
+        on_action: Option<Rc<dyn Fn(&mut Game, &mut Tower) -> Result<(), String>>>,
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -194,8 +199,10 @@ impl Tower {
             position,
             last_attack: 0.0,
             on_action,
+            highlight: None,
         }
     }
+
     pub fn can_shoot(&self, current_time: f32) -> bool {
         if let Some(attacks_per_second) = &self.stats.attacks_per_second {
             let time_since_last_attack = current_time - self.last_attack;
@@ -347,7 +354,7 @@ impl Tower {
         (base as f32 * synergy_factor).round() as u32
     }
 
-    pub fn shoot(&mut self, wave: &mut Wave, current_time: f32) -> Vec<String> {
+    pub fn shoot(&mut self, game: &mut Game, current_time: f32) -> Vec<String> {
         let mut primary_targets = Vec::new();
         let mut logs = Vec::new();
 
@@ -355,20 +362,21 @@ impl Tower {
         self.last_attack = current_time;
 
         if let Some(on_action) = self.on_action.take() {
-            on_action(wave, self).unwrap();
+            on_action(game, self).unwrap();
             self.on_action = Some(on_action);
         }
 
         // Sélectionner les cibles primaires en fonction de la stratégie
+        let current_wave = game.current_wave.as_mut().unwrap();
         match self.meta.target_selection {
             TargetSelection::Nearest => {
-                if let Some(target) = self.find_nearest_target(wave) {
+                if let Some(target) = self.find_nearest_target(current_wave) {
                     primary_targets.push(target);
                 }
             }
             TargetSelection::All => {
                 // Cibler tous les monstres dans la portée
-                for (idx, monster) in wave.monsters.iter().enumerate() {
+                for (idx, monster) in current_wave.monsters.iter().enumerate() {
                     if monster.active && self.is_in_range(monster) {
                         primary_targets.push(idx);
                     }
@@ -376,7 +384,7 @@ impl Tower {
             }
             _ => {
                 // Par défaut, prendre le premier monstre dans la portée
-                for (idx, monster) in wave.monsters.iter().enumerate() {
+                for (idx, monster) in current_wave.monsters.iter().enumerate() {
                     if monster.active && self.is_in_range(monster) {
                         primary_targets.push(idx);
                         break;
@@ -387,13 +395,13 @@ impl Tower {
 
         // Traiter chaque cible primaire et les cibles AOE si applicable
         for target_idx in primary_targets {
-            if let Some(target_monster) = wave.monsters.get(target_idx) {
+            if let Some(target_monster) = current_wave.monsters.get(target_idx) {
                 if !target_monster.active {
                     continue;
                 }
 
                 if let Some(damage) = &self.stats.damage {
-                    if let Some(monster) = wave.monsters.get_mut(target_idx) {
+                    if let Some(monster) = current_wave.monsters.get_mut(target_idx) {
                         let actual_damage = self.meta.behavior.apply(monster, damage.base);
                         monster.hp -= actual_damage;
 
@@ -404,8 +412,8 @@ impl Tower {
                     }
 
                     if let Some(aoe) = &self.meta.aoe {
-                        let target_pos = wave.monsters[target_idx].position;
-                        for (idx, monster) in wave.monsters.iter_mut().enumerate() {
+                        let target_pos = current_wave.monsters[target_idx].position;
+                        for (idx, monster) in current_wave.monsters.iter_mut().enumerate() {
                             if idx == target_idx || !monster.active {
                                 continue;
                             }

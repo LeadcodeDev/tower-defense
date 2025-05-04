@@ -6,6 +6,7 @@ use crate::application::engine::towers::basic_tower::BasicTower;
 use crate::application::engine::towers::earth_tower::EarthTower;
 use crate::application::engine::towers::fire_tower::FireTower;
 use crate::application::engine::towers::ice_tower::IceTower;
+use crate::application::engine::towers::mine_tower::MineTower;
 use crate::application::engine::towers::sentinel_tower::SentinelTower;
 use crate::domain::entities::map::Map;
 use crate::domain::entities::tower::{Tower, UpgradeType};
@@ -166,6 +167,7 @@ impl App {
                 EarthTower::positionned(Position::new(0, 0)),
                 AirTower::positionned(Position::new(0, 0)),
                 SentinelTower::positionned(Position::new(0, 0)),
+                MineTower::positionned(Position::new(0, 0)),
             ],
             ui_mode: UiMode::Normal,
             cursor_position: Position::new(5, 5),
