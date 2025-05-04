@@ -301,7 +301,7 @@ impl Tower {
 
     pub fn shoot(&mut self, game: &mut Game, current_time: f32) -> Vec<String> {
         let mut primary_targets = Vec::new();
-        let mut logs = Vec::new();
+        let logs = Vec::new();
 
         // Mettre à jour le temps du dernier tir
         self.last_attack = current_time;

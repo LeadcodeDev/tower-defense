@@ -27,7 +27,7 @@ impl SentinelTower {
                 stat_type: TowerStatType::Range,
                 label: "Range".to_string(),
                 icon: "🔭".to_string(),
-                base: 5.0,
+                base: 2.0,
                 level: 1,
                 upgrade: None,
             }],
@@ -40,8 +40,8 @@ impl SentinelTower {
             Some(Rc::new(|game, tower| {
                 let mut monsters_detected = false;
 
-                if let Some(map) = &mut game.current_map {
-                    let monsters = map
+                if let Some(wave) = &mut game.current_wave {
+                    let monsters = wave
                         .monsters
                         .iter_mut()
                         .filter(|monster| !monster.detected.contains(&tower.id));
@@ -55,7 +55,7 @@ impl SentinelTower {
                             .unwrap()
                             .base;
 
-                        if distance <= range {
+                        if distance.floor() <= range {
                             monsters_detected = true;
                             monster.detected.push(tower.id);
 

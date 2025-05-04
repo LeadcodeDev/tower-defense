@@ -133,19 +133,30 @@ impl Game {
             let count = rng.random_range(1..=10 + self.wave_index);
             let mut monsters = Vec::new();
 
+            // Get the first waypoint position for monsters to start at
+            let start_position = if !map.waypoints.is_empty() {
+                map.waypoints[0]
+            } else {
+                Position::initial()
+            };
+
             for _ in 0..count as usize {
                 let mut monster = map.monsters[rng.random_range(0..map.monsters.len())].clone();
                 monster.hp = monster.hp * (1.0 + self.wave_index as f32 * self.wave_multiplier);
                 monster.waypoint_idx = 1;
+                // Set the position to the first waypoint
+                monster.position = start_position;
 
                 monsters.push(monster);
             }
 
-            if self.spawn_interval <= 0.0 {
-                return Wave::new(Some(monsters));
+            let wave = if self.spawn_interval <= 0.0 {
+                Wave::new(Some(monsters))
             } else {
-                return Wave::with_staggered_spawn(monsters, self.spawn_interval);
-            }
+                Wave::with_staggered_spawn(monsters, self.spawn_interval)
+            };
+
+            return wave;
         }
 
         panic!("No map selected");
@@ -227,23 +238,6 @@ impl Game {
                     monster.advance(map, delta_time);
                 }
             }
-
-            // let sub_frames = 1;
-            // let sub_delta = delta_time / sub_frames as f32;
-            // let start_time = self.elapsed_time;
-
-            // for i in 0..sub_frames {
-            //     let sub_frame_time = start_time + sub_delta * i as f32;
-
-            //     for tower in &mut self.towers {
-            //         if tower.can_shoot(sub_frame_time) {
-            //             let tower_logs = tower.shoot(self, sub_frame_time);
-            //             logs_to_add.extend(tower_logs);
-            //         }
-            //     }
-            // }
-
-            // self.elapsed_time += delta_time;
 
             let mut rem = Vec::new();
             let mut wave_is_empty = false;
