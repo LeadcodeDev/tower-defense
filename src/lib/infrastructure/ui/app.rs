@@ -1,7 +1,9 @@
-use crate::application::engine::maps::MapType;
+use crate::application::engine::maps::cave::CaveMap;
+use crate::application::engine::maps::desert::DesertMap;
 use crate::application::engine::maps::forest::ForestMap;
 use crate::application::engine::towers::ice_tower::IceTower;
 use crate::application::engine::towers::sentinel_tower::SentinelTower;
+use crate::domain::entities::map::Map;
 use crate::domain::entities::tower::UpgradeType;
 use crate::domain::entities::{game::Game, position::Position};
 use crate::domain::entities::{tower::TowerKind, wave::Wave};
@@ -132,9 +134,9 @@ pub struct App {
     /// Index de la tourelle sélectionnée sur la carte
     pub selected_tower_index: Option<usize>,
     /// Les cartes disponibles
-    pub available_maps: Vec<MapType>,
+    pub available_maps: Vec<Map>,
     /// La carte sélectionnée
-    pub selected_map: Option<MapType>,
+    pub selected_map: Option<Map>,
 }
 
 /// Les différentes vues disponibles dans l'application
@@ -173,8 +175,6 @@ impl App {
         ];
 
         // Cartes disponibles
-        let maps = MapType::all_maps();
-
         Self {
             running: true,
             game,
@@ -188,7 +188,7 @@ impl App {
             upgrade_menu: None,
             tower_selection_on_map: false,
             selected_tower_index: None,
-            available_maps: maps,
+            available_maps: vec![ForestMap::new(), DesertMap::new(), CaveMap::new()],
             selected_map: None,
         }
     }
@@ -228,7 +228,7 @@ impl App {
             // Vérifier l'état du jeu pour les transitions
             if self.game.player_life <= 0 {
                 self.current_view = View::GameOver;
-            } else if self.game.waves.is_empty() && self.game.current_wave.is_none() {
+            } else if self.game.waves.is_none() && self.game.current_wave.is_none() {
                 self.current_view = View::GameOver;
             }
         }
@@ -488,16 +488,12 @@ impl App {
             View::MapSelection => {
                 // Sélectionner une carte
                 if self.selected_index < self.available_maps.len() {
-                    let selected_map = self.available_maps[self.selected_index];
-                    self.selected_map = Some(selected_map);
+                    let selected_map = self.available_maps[self.selected_index].clone();
+                    self.selected_map = Some(selected_map.clone());
 
-                    // Créer une nouvelle partie avec la carte sélectionnée
-                    let map = selected_map.create_map();
-                    let wave = crate::domain::entities::wave::Wave::new(None);
-                    self.game =
-                        crate::domain::entities::game::Game::new(map, vec![wave], vec![], 10, 1.0);
+                    self.game = Game::new(vec![], 10, 1.0);
+                    self.game.current_map = Some(selected_map);
 
-                    // Passer à l'écran de jeu
                     self.set_view(View::Game);
                 }
             }
@@ -506,27 +502,22 @@ impl App {
                 1 => self.quit(),
                 _ => {}
             },
-            View::GameOver => {
-                match self.selected_index {
-                    0 => {
-                        // Nouvelle partie - passer à la sélection de carte
-                        self.set_view(View::MapSelection);
-                    }
-                    1 => {
-                        self.quit();
-                    }
-                    _ => {}
+            View::GameOver => match self.selected_index {
+                0 => {
+                    self.set_view(View::MapSelection);
                 }
-            }
+                1 => {
+                    self.quit();
+                }
+                _ => {}
+            },
         }
     }
 
-    /// Crée un nouveau jeu (réinitialise le jeu actuel)
     pub fn reset_game(&mut self) {
         let map = ForestMap::new();
         let n = 10;
 
-        // Sélection aléatoire de N monstres parmi le vecteur
         let mut selected_monsters = Vec::new();
         for _ in 0..n {
             if let Some(monster) = map.monsters.choose(&mut rng()) {
@@ -534,21 +525,16 @@ impl App {
             }
         }
 
-        let wave = Wave::new(Some(selected_monsters));
+        self.game = Game::new(vec![], 10, 1.0);
+        self.game.current_map = Some(map);
 
-        // Remplacer le jeu actuel par un nouveau
-        self.game = Game::new(map, vec![wave], vec![], 10, 1.0);
-
-        // Réinitialiser les états d'interface
         self.ui_mode = UiMode::Normal;
         self.selected_index = 0;
         self.selected_tower = None;
     }
 
-    // Méthodes pour ajouter différents types de tours
     pub fn add_basic_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Basic.cost()) {
-            // Vérifier si la position est valide avant de débiter
             if !self.is_position_valid(&position) {
                 self.game.add_log(
                     "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
@@ -564,7 +550,6 @@ impl App {
 
     pub fn add_fire_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Fire.cost()) {
-            // Vérifier si la position est valide avant de débiter
             if !self.is_position_valid(&position) {
                 self.game.add_log(
                     "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
@@ -580,7 +565,6 @@ impl App {
 
     pub fn add_water_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Water.cost()) {
-            // Vérifier si la position est valide avant de débiter
             if !self.is_position_valid(&position) {
                 self.game.add_log(
                     "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
@@ -596,7 +580,6 @@ impl App {
 
     pub fn add_earth_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Earth.cost()) {
-            // Vérifier si la position est valide avant de débiter
             if !self.is_position_valid(&position) {
                 self.game.add_log(
                     "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
@@ -612,7 +595,6 @@ impl App {
 
     pub fn add_air_tower(&mut self, position: Position) {
         if self.game.has_enough_money(TowerType::Air.cost()) {
-            // Vérifier si la position est valide avant de débiter
             if !self.is_position_valid(&position) {
                 self.game.add_log(
                     "❌ Position invalide : sur le chemin des monstres ou déjà occupée".to_string(),
@@ -686,7 +668,6 @@ impl App {
             keep_selection.unwrap_or(0)
         };
 
-        // Get all the values we need first
         let (tower_type, level, cost_attack_speed, cost_damage, cost_range) = {
             let tower = &self.game.towers[index];
             (
@@ -698,7 +679,6 @@ impl App {
             )
         };
 
-        // Add all logs at once
         self.game
             .add_log(format!("🔍 Tour {} (Niveau {})", tower_type, level));
         self.game.add_log(format!(
@@ -710,10 +690,9 @@ impl App {
         self.game
             .add_log(format!("💰 Portée: {} pièces", cost_range));
 
-        // Create the upgrade menu
         let tower = &self.game.towers[index];
-
         let mut upgrades = vec![];
+
         if let Some(attacks_per_second) = &tower.stats.attacks_per_second {
             upgrades.push((
                 UpgradeType::AttackSpeed,
@@ -746,14 +725,12 @@ impl App {
             if current_selection < upgrade_menu.available_upgrades.len() {
                 let (upgrade_type, _) = upgrade_menu.available_upgrades[current_selection];
 
-                // Vérifier si cette amélioration spécifique est au maximum
                 let tower = &self.game.towers[tower_index];
                 let cost = tower.upgrade_cost_for_attribute(upgrade_type);
 
                 if cost == 0 {
                     self.game
                         .add_log(format!("❌ Cette amélioration est déjà au niveau maximum."));
-                    // Garder le menu ouvert pour permettre la sélection d'autres améliorations
                     return;
                 }
 
@@ -772,8 +749,6 @@ impl App {
             }
         }
 
-        // Si on arrive ici, c'est qu'il y a eu un problème avec l'amélioration
-        // ou que l'utilisateur a choisi "Annuler", on ferme le menu
         self.upgrade_menu = None;
         self.ui_mode = UiMode::Normal;
     }
@@ -806,7 +781,6 @@ impl App {
         self.tower_selection_on_map
     }
 
-    /// Commence la sélection de tour sur la carte
     pub fn start_tower_selection_on_map(&mut self) {
         if self.game.towers.is_empty() {
             self.game
@@ -832,7 +806,6 @@ impl App {
         }
     }
 
-    /// Sélectionne la tour au-dessus de la position actuelle
     pub fn select_tower_on_map_up(&mut self) {
         if let Some(current_index) = self.selected_tower_index {
             let current_pos = self.game.towers[current_index].position;
@@ -869,18 +842,15 @@ impl App {
         }
     }
 
-    /// Sélectionne la tour en dessous de la position actuelle
     pub fn select_tower_on_map_down(&mut self) {
         if let Some(current_index) = self.selected_tower_index {
             let current_pos = self.game.towers[current_index].position;
 
-            // Trouver la tour la plus proche vers le bas
             let mut closest_tower_index = None;
             let mut min_distance = f32::MAX;
 
             for (i, tower) in self.game.towers.iter().enumerate() {
                 let pos = tower.position;
-                // Vérifier que la tour est en dessous
                 if pos.y > current_pos.y {
                     let dx = (pos.x - current_pos.x) as f32;
                     let dy = (pos.y - current_pos.y) as f32;
@@ -908,18 +878,15 @@ impl App {
         }
     }
 
-    /// Sélectionne la tour à gauche de la position actuelle
     pub fn select_tower_on_map_left(&mut self) {
         if let Some(current_index) = self.selected_tower_index {
             let current_pos = self.game.towers[current_index].position;
 
-            // Trouver la tour la plus proche vers la gauche
             let mut closest_tower_index = None;
             let mut min_distance = f32::MAX;
 
             for (i, tower) in self.game.towers.iter().enumerate() {
                 let pos = tower.position;
-                // Vérifier que la tour est à gauche
                 if pos.x < current_pos.x {
                     let dx = (pos.x - current_pos.x) as f32;
                     let dy = (pos.y - current_pos.y) as f32;
@@ -947,12 +914,10 @@ impl App {
         }
     }
 
-    /// Sélectionne la tour à droite de la position actuelle
     pub fn select_tower_on_map_right(&mut self) {
         if let Some(current_index) = self.selected_tower_index {
             let current_pos = self.game.towers[current_index].position;
 
-            // Trouver la tour la plus proche vers la droite
             let mut closest_tower_index = None;
             let mut min_distance = f32::MAX;
 
@@ -974,9 +939,9 @@ impl App {
                 self.selected_tower_index = Some(index);
                 self.cursor_position = self.game.towers[index].position;
 
-                // Afficher les infos de la tour sélectionnée
                 let tower = &self.game.towers[index];
                 let tower_type = tower.name.clone();
+
                 self.game.add_log(format!(
                     "🔍 Tour {} (Niveau {}) sélectionnée",
                     tower_type, tower.level
@@ -985,20 +950,20 @@ impl App {
         }
     }
 
-    /// Vérifie si une position est valide pour placer une tour
     fn is_position_valid(&self, position: &Position) -> bool {
-        // Vérifier si la position est sur le chemin des monstres
-        if self.game.map.is_position_on_path(position) {
-            return false;
+        if let Some(map) = &self.game.current_map {
+            if map.is_position_on_path(position) {
+                return false;
+            }
         }
 
-        // Vérifier si une tour existe déjà à cette position
-        if self
+        let tower = self
             .game
             .towers
             .iter()
-            .any(|t| t.position.x == position.x && t.position.y == position.y)
-        {
+            .any(|t| t.position.x == position.x && t.position.y == position.y);
+
+        if tower {
             return false;
         }
 

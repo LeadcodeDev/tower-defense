@@ -1,9 +1,6 @@
 use crate::{
     application::engine::monsters::basics::{goblin, orc},
-    domain::entities::{
-        map::{Map, TerrainType},
-        position::Position,
-    },
+    domain::entities::{map::Map, position::Position},
 };
 
 pub struct ForestMap;
@@ -14,6 +11,7 @@ impl ForestMap {
 
         Map::new(
             "Forêt Enchantée".to_string(),
+            "Une forêt dense et mystérieuse".to_string(),
             vec![
                 start_position,
                 Position::new(5, 7),
@@ -26,8 +24,8 @@ impl ForestMap {
             ],
             20, // largeur de la carte
             20, // hauteur de la carte
-            TerrainType::Forest,
             vec![goblin(start_position), orc(start_position)],
+            None,
         )
     }
 }

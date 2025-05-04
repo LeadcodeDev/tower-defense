@@ -105,15 +105,14 @@ impl Monster {
             return;
         }
 
-        // Calculer la distance totale au waypoint cible
         let dist = ((dx * dx + dy * dy) as f32).sqrt();
+        let terrain_modifier = if let Some(modifier) = &map.apply_modifier {
+            modifier()
+        } else {
+            1.0
+        };
 
-        // Utiliser directement movement_speed comme cases par seconde
-        // et l'ajuster en fonction du type de terrain
-        let terrain_modifier = map.terrain_type.speed_modifier();
         let cases_per_second = self.movement_speed * terrain_modifier;
-
-        // Calculer le déplacement pour ce frame
         let distance_this_frame = cases_per_second * delta_time;
 
         // Ajouter à la distance accumulée

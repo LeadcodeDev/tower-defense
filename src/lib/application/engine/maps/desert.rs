@@ -1,9 +1,6 @@
 use crate::{
     application::engine::monsters::basics::{goblin, orc},
-    domain::entities::{
-        map::{Map, TerrainType},
-        position::Position,
-    },
+    domain::entities::{map::Map, position::Position},
 };
 
 pub struct DesertMap;
@@ -14,6 +11,7 @@ impl DesertMap {
 
         Map::new(
             "Désert Aride".to_string(),
+            "Un désert aride et hostile".to_string(),
             vec![
                 start_position,
                 Position::new(5, 10),
@@ -26,8 +24,8 @@ impl DesertMap {
             ],
             20, // largeur de la carte
             20, // hauteur de la carte
-            TerrainType::Desert,
             vec![goblin(start_position), orc(start_position)],
+            None,
         )
     }
 }

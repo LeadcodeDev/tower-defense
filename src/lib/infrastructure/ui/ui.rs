@@ -80,146 +80,149 @@ fn render_header(app: &App, frame: &mut Frame, area: Rect) {
 
 /// Affiche la carte de jeu
 fn render_map(app: &App, frame: &mut Frame, area: Rect) {
-    let game = &app.game;
+    if let Some(map) = &app.game.current_map {
+        let game = &app.game;
 
-    // Créer une matrice pour stocker les caractères et une autre pour les styles
-    let mut map_chars = vec![vec![' '; area.width as usize]; area.height as usize];
-    let mut map_styles = vec![vec![Style::default(); area.width as usize]; area.height as usize];
+        // Créer une matrice pour stocker les caractères et une autre pour les styles
+        let mut map_chars = vec![vec![' '; area.width as usize]; area.height as usize];
+        let mut map_styles =
+            vec![vec![Style::default(); area.width as usize]; area.height as usize];
 
-    // Marquer toutes les cellules du chemin avec un style spécial
-    for waypoint in &game.map.waypoints {
-        if waypoint.x < area.width as i32 && waypoint.y < area.height as i32 {
-            map_chars[waypoint.y as usize][waypoint.x as usize] = '.';
-            map_styles[waypoint.y as usize][waypoint.x as usize] =
-                Style::default().bg(Color::DarkGray).fg(Color::White);
+        // Marquer toutes les cellules du chemin avec un style spécial
+        for waypoint in &map.waypoints {
+            if waypoint.x < area.width as i32 && waypoint.y < area.height as i32 {
+                map_chars[waypoint.y as usize][waypoint.x as usize] = '.';
+                map_styles[waypoint.y as usize][waypoint.x as usize] =
+                    Style::default().bg(Color::DarkGray).fg(Color::White);
+            }
         }
-    }
 
-    // Créer un chemin continu entre les waypoints
-    if game.map.waypoints.len() > 1 {
-        for i in 0..game.map.waypoints.len() - 1 {
-            let start = game.map.waypoints[i];
-            let end = game.map.waypoints[i + 1];
+        // Créer un chemin continu entre les waypoints
+        if map.waypoints.len() > 1 {
+            for i in 0..map.waypoints.len() - 1 {
+                let start = map.waypoints[i];
+                let end = map.waypoints[i + 1];
 
-            // Dessiner une ligne entre les deux waypoints
-            let dx = (end.x - start.x).signum();
-            let dy = (end.y - start.y).signum();
+                // Dessiner une ligne entre les deux waypoints
+                let dx = (end.x - start.x).signum();
+                let dy = (end.y - start.y).signum();
 
-            let mut x = start.x;
-            let mut y = start.y;
+                let mut x = start.x;
+                let mut y = start.y;
 
-            // Commencer par l'horizontal, puis le vertical
-            while x != end.x {
-                x += dx;
-                if x >= 0 && x < area.width as i32 && y >= 0 && y < area.height as i32 {
-                    map_chars[y as usize][x as usize] = ' ';
-                    map_styles[y as usize][x as usize] =
-                        Style::default().bg(Color::DarkGray).fg(Color::White);
+                // Commencer par l'horizontal, puis le vertical
+                while x != end.x {
+                    x += dx;
+                    if x >= 0 && x < area.width as i32 && y >= 0 && y < area.height as i32 {
+                        map_chars[y as usize][x as usize] = ' ';
+                        map_styles[y as usize][x as usize] =
+                            Style::default().bg(Color::DarkGray).fg(Color::White);
+                    }
                 }
-            }
 
-            while y != end.y {
-                y += dy;
-                if x >= 0 && x < area.width as i32 && y >= 0 && y < area.height as i32 {
-                    map_chars[y as usize][x as usize] = ' ';
-                    map_styles[y as usize][x as usize] =
-                        Style::default().bg(Color::DarkGray).fg(Color::White);
-                }
-            }
-        }
-    }
-
-    // Dessiner les tourelles
-    for (i, tower) in game.towers.iter().enumerate() {
-        let pos = tower.position;
-        if pos.x < area.width as i32 && pos.y < area.height as i32 {
-            let tower_char = match tower.meta.tower_type {
-                TowerKind::Basic => 'B',
-                TowerKind::Fire => 'F',
-                TowerKind::Water => 'W',
-                TowerKind::Earth => 'E',
-                TowerKind::Air => 'A',
-                TowerKind::Lightning => 'L',
-                TowerKind::Ice => 'I',
-                TowerKind::Poison => 'P',
-                TowerKind::Sentinel => 'S',
-            };
-
-            map_chars[pos.y as usize][pos.x as usize] = tower_char;
-
-            // Mettre en évidence la tour sélectionnée quand on est en mode sélection sur la carte
-            let is_selected = app.tower_selection_on_map
-                && app.selected_tower_index.map_or(false, |index| index == i);
-
-            if is_selected {
-                map_styles[pos.y as usize][pos.x as usize] = Style::default()
-                    .fg(Color::Green)
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD);
-            } else {
-                map_styles[pos.y as usize][pos.x as usize] = Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD);
-            }
-        }
-    }
-
-    // Dessiner les monstres
-    if let Some(wave) = &game.current_wave {
-        for monster in &wave.monsters {
-            if monster.active {
-                let x = monster.position.x;
-                let y = monster.position.y;
-                if x < area.width as i32 && y < area.height as i32 {
-                    map_chars[y as usize][x as usize] = '■';
-                    map_styles[y as usize][x as usize] = Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD)
-                        .bg(Color::DarkGray); // Garder le fond du chemin
+                while y != end.y {
+                    y += dy;
+                    if x >= 0 && x < area.width as i32 && y >= 0 && y < area.height as i32 {
+                        map_chars[y as usize][x as usize] = ' ';
+                        map_styles[y as usize][x as usize] =
+                            Style::default().bg(Color::DarkGray).fg(Color::White);
+                    }
                 }
             }
         }
-    }
 
-    // Dessiner le curseur en mode placement ou en mode sélection sur la carte
-    if app.ui_mode == UiMode::Placement
-        || (app.ui_mode == UiMode::TowerSelection && app.tower_selection_on_map)
-    {
-        let cursor_x = app.cursor_position.x;
-        let cursor_y = app.cursor_position.y;
-        if cursor_x < area.width as i32 && cursor_y < area.height as i32 {
-            // En mode placement normal, afficher X, en mode sélection sur carte afficher un symbole différent
-            let is_upgrade_mode = app.selected_index < app.available_actions.len()
-                && app.selected_tower.is_none()
-                && app.available_actions[app.selected_index] == GameAction::UpgradeTower;
+        // Dessiner les tourelles
+        for (i, tower) in game.towers.iter().enumerate() {
+            let pos = tower.position;
+            if pos.x < area.width as i32 && pos.y < area.height as i32 {
+                let tower_char = match tower.meta.tower_type {
+                    TowerKind::Basic => 'B',
+                    TowerKind::Fire => 'F',
+                    TowerKind::Water => 'W',
+                    TowerKind::Earth => 'E',
+                    TowerKind::Air => 'A',
+                    TowerKind::Lightning => 'L',
+                    TowerKind::Ice => 'I',
+                    TowerKind::Poison => 'P',
+                    TowerKind::Sentinel => 'S',
+                };
 
-            if is_upgrade_mode {
-                map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
-                    .bg(Color::Black)
-                    .add_modifier(Modifier::BOLD);
-            } else {
-                map_chars[cursor_y as usize][cursor_x as usize] = '×';
-                map_styles[cursor_y as usize][cursor_x as usize] =
-                    Style::default().add_modifier(Modifier::BOLD);
+                map_chars[pos.y as usize][pos.x as usize] = tower_char;
+
+                // Mettre en évidence la tour sélectionnée quand on est en mode sélection sur la carte
+                let is_selected = app.tower_selection_on_map
+                    && app.selected_tower_index.map_or(false, |index| index == i);
+
+                if is_selected {
+                    map_styles[pos.y as usize][pos.x as usize] = Style::default()
+                        .fg(Color::Green)
+                        .bg(Color::DarkGray)
+                        .add_modifier(Modifier::BOLD);
+                } else {
+                    map_styles[pos.y as usize][pos.x as usize] = Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD);
+                }
             }
         }
+
+        // Dessiner les monstres
+        if let Some(wave) = &game.current_wave {
+            for monster in &wave.monsters {
+                if monster.active {
+                    let x = monster.position.x;
+                    let y = monster.position.y;
+                    if x < area.width as i32 && y < area.height as i32 {
+                        map_chars[y as usize][x as usize] = '■';
+                        map_styles[y as usize][x as usize] = Style::default()
+                            .fg(Color::Red)
+                            .add_modifier(Modifier::BOLD)
+                            .bg(Color::DarkGray); // Garder le fond du chemin
+                    }
+                }
+            }
+        }
+
+        // Dessiner le curseur en mode placement ou en mode sélection sur la carte
+        if app.ui_mode == UiMode::Placement
+            || (app.ui_mode == UiMode::TowerSelection && app.tower_selection_on_map)
+        {
+            let cursor_x = app.cursor_position.x;
+            let cursor_y = app.cursor_position.y;
+            if cursor_x < area.width as i32 && cursor_y < area.height as i32 {
+                // En mode placement normal, afficher X, en mode sélection sur carte afficher un symbole différent
+                let is_upgrade_mode = app.selected_index < app.available_actions.len()
+                    && app.selected_tower.is_none()
+                    && app.available_actions[app.selected_index] == GameAction::UpgradeTower;
+
+                if is_upgrade_mode {
+                    map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
+                        .bg(Color::Black)
+                        .add_modifier(Modifier::BOLD);
+                } else {
+                    map_chars[cursor_y as usize][cursor_x as usize] = '×';
+                    map_styles[cursor_y as usize][cursor_x as usize] =
+                        Style::default().add_modifier(Modifier::BOLD);
+                }
+            }
+        }
+
+        // Convertir la grille en texte stylisé pour l'affichage
+        let map_text: Vec<Line> = (0..map_chars.len())
+            .map(|y| {
+                let spans: Vec<Span> = (0..map_chars[y].len())
+                    .map(|x| Span::styled(map_chars[y][x].to_string(), map_styles[y][x]))
+                    .collect();
+                Line::from(spans)
+            })
+            .collect();
+
+        let map_widget = Paragraph::new(map_text)
+            .block(Block::default().borders(Borders::ALL).title("Carte"))
+            .style(Style::default());
+
+        frame.render_widget(map_widget, area);
     }
-
-    // Convertir la grille en texte stylisé pour l'affichage
-    let map_text: Vec<Line> = (0..map_chars.len())
-        .map(|y| {
-            let spans: Vec<Span> = (0..map_chars[y].len())
-                .map(|x| Span::styled(map_chars[y][x].to_string(), map_styles[y][x]))
-                .collect();
-            Line::from(spans)
-        })
-        .collect();
-
-    let map_widget = Paragraph::new(map_text)
-        .block(Block::default().borders(Borders::ALL).title("Carte"))
-        .style(Style::default());
-
-    frame.render_widget(map_widget, area);
 }
 
 /// Affiche la barre d'informations
@@ -958,10 +961,8 @@ fn render_map_selection(app: &App, frame: &mut Frame) {
     // Créer la liste des cartes
     let mut map_items = Vec::new();
 
-    for (idx, map_type) in app.available_maps.iter().enumerate() {
+    for (idx, map) in app.available_maps.iter().enumerate() {
         let is_selected = idx == app.selected_index;
-        let map_name = map_type.get_name();
-        let map_desc = map_type.get_description();
 
         let style = if is_selected {
             Style::default()
@@ -981,9 +982,12 @@ fn render_map_selection(app: &App, frame: &mut Frame) {
         }
 
         // Ajouter le nom de la carte
-        content.push(Span::styled(map_name, style));
+        content.push(Span::styled(map.name.clone(), style));
         content.push(Span::raw(" - "));
-        content.push(Span::styled(map_desc, Style::default().fg(Color::Gray)));
+        content.push(Span::styled(
+            map.description.clone(),
+            Style::default().fg(Color::Gray),
+        ));
 
         map_items.push(ListItem::new(Line::from(content)));
     }
