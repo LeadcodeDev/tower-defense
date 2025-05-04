@@ -1,13 +1,13 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
 };
 
 use crate::{
-    domain::entities::tower::{TowerKind, TowerUpgradeElementUnit, UpgradeType},
+    domain::entities::tower::TowerUpgradeElementUnit,
     infrastructure::ui::app::{App, GameAction, TowerType, UiMode, View},
 };
 
@@ -169,6 +169,17 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
             }
         }
 
+        if let Some(_) = app.selected_map
+            && app.ui_mode == UiMode::TowerUpgrade
+        {
+            let cursor_x = app.cursor_position.x;
+            let cursor_y = app.cursor_position.y;
+
+            map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
+                .bg(Color::Yellow)
+                .add_modifier(Modifier::BOLD);
+        }
+
         // Dessiner le curseur en mode placement ou en mode sélection sur la carte
         if app.ui_mode == UiMode::Placement
             || (app.ui_mode == UiMode::TowerSelection && app.tower_selection_on_map)
@@ -190,7 +201,7 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
                             .add_modifier(Modifier::BOLD);
                     } else {
                         map_styles[cursor_y as usize][cursor_x as usize] = Style::default()
-                            .bg(Color::DarkGray)
+                            .bg(Color::LightRed)
                             .add_modifier(Modifier::BOLD);
                     }
                 } else {
@@ -207,7 +218,6 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
             }
         }
 
-        // Convertir la grille en texte stylisé pour l'affichage
         let map_text: Vec<Line> = (0..map_chars.len())
             .map(|y| {
                 let spans: Vec<Span> = (0..map_chars[y].len())
@@ -218,7 +228,11 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
             .collect();
 
         let map_widget = Paragraph::new(map_text)
-            .block(Block::default().borders(Borders::ALL).title("Carte"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(format!(" {} ", map.name.clone())),
+            )
             .style(Style::default());
 
         frame.render_widget(map_widget, area);
@@ -459,213 +473,61 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                     action_items.push(ListItem::new("Choisissez une amélioration:"));
                     action_items.push(ListItem::new(""));
 
-                    // Afficher les options d'amélioration
-                    for (i, (upgrade_type, description)) in
-                        upgrade_menu.available_upgrades.iter().enumerate()
-                    {
-                        let cost = tower.upgrade_cost_for_attribute(*upgrade_type);
-                        let is_maxed = cost == 0;
+                    let stats = upgrade_menu.available_upgrades.iter().enumerate();
+                    for (i, (stat_type, description)) in stats {
+                        let cost = tower.upgrade_cost_for_attribute(stat_type.clone());
+                        let is_maxed = cost.is_none();
 
-                        // Récupérer les valeurs actuelles
-                        let current_value = match upgrade_type {
-                            UpgradeType::AttackSpeed => {
-                                if let Some(attack_speed) = &tower.stats.attacks_per_second {
-                                    attack_speed.base
-                                } else {
-                                    0.0
-                                }
-                            }
-                            UpgradeType::Damage => {
-                                if let Some(damage) = &tower.stats.damage {
-                                    damage.base
-                                } else {
-                                    0.0
-                                }
-                            }
-                            UpgradeType::Range => tower.stats.range.base,
+                        let item_rect = Rect {
+                            x: area.x + 1,
+                            y: area.y + action_items.len() as u16, // Position Y basée sur le nombre d'éléments déjà ajoutés
+                            width: area.width - 2,
+                            height: 1,
                         };
 
-                        let bonus = if is_maxed {
-                            // Format pour les améliorations au maximum - sans MAX à la fin
-                            match upgrade_type {
-                                UpgradeType::AttackSpeed => {
-                                    format!("⚡️ {:.2}/s Attack speed (MAX)", current_value)
-                                }
-                                UpgradeType::Damage => {
-                                    format!("💥 {:.2} Damage (MAX)", current_value)
-                                }
-                                UpgradeType::Range => {
-                                    format!("🔍 {:.2} Range (MAX)", current_value)
-                                }
-                            }
-                        } else {
-                            // Format pour les améliorations normales
-                            let modifier = match upgrade_type {
-                                UpgradeType::AttackSpeed => {
-                                    match tower
-                                        .upgrades
-                                        .attacks_speed
-                                        .as_ref()
-                                        .unwrap()
-                                        .value_multiplier_unit
-                                    {
-                                        TowerUpgradeElementUnit::Percent => format!(
-                                            "x{:.2}%",
-                                            tower
-                                                .upgrades
-                                                .attacks_speed
-                                                .as_ref()
-                                                .unwrap()
-                                                .value_multiplier
-                                        ),
-                                        TowerUpgradeElementUnit::Unit => format!(
-                                            "+{}",
-                                            tower
-                                                .upgrades
-                                                .attacks_speed
-                                                .as_ref()
-                                                .unwrap()
-                                                .value_multiplier
-                                        ),
-                                    }
-                                }
-                                UpgradeType::Damage => {
-                                    match tower
-                                        .upgrades
-                                        .damage
-                                        .as_ref()
-                                        .unwrap()
-                                        .value_multiplier_unit
-                                    {
-                                        TowerUpgradeElementUnit::Percent => {
-                                            format!(
-                                                "x{:.2}%",
-                                                tower
-                                                    .upgrades
-                                                    .damage
-                                                    .as_ref()
-                                                    .unwrap()
-                                                    .value_multiplier
-                                            )
-                                        }
-                                        TowerUpgradeElementUnit::Unit => {
-                                            format!(
-                                                "+{}",
-                                                tower
-                                                    .upgrades
-                                                    .damage
-                                                    .as_ref()
-                                                    .unwrap()
-                                                    .value_multiplier
-                                            )
-                                        }
-                                    }
-                                }
-                                UpgradeType::Range => {
-                                    match tower
-                                        .upgrades
-                                        .range
-                                        .as_ref()
-                                        .unwrap()
-                                        .value_multiplier_unit
-                                    {
-                                        TowerUpgradeElementUnit::Percent => {
-                                            format!(
-                                                "x{:.2}%",
-                                                tower
-                                                    .upgrades
-                                                    .range
-                                                    .as_ref()
-                                                    .unwrap()
-                                                    .value_multiplier
-                                            )
-                                        }
-                                        TowerUpgradeElementUnit::Unit => {
-                                            format!(
-                                                "+{}",
-                                                tower
-                                                    .upgrades
-                                                    .range
-                                                    .as_ref()
-                                                    .unwrap()
-                                                    .value_multiplier
-                                            )
-                                        }
-                                    }
-                                }
-                            };
+                        let chunks = Layout::default()
+                            .direction(Direction::Horizontal)
+                            .constraints(vec![
+                                Constraint::Percentage(70),
+                                Constraint::Percentage(30),
+                            ])
+                            .split(item_rect);
 
-                            // Format pour les améliorations normales avec le coût
-                            format!("{} ({}), 💰{:.2}", description, modifier, cost)
-                        };
-
-                        // Mettre en surbrillance l'option sélectionnée
                         let style = if i == upgrade_menu.selected_upgrade {
                             Style::default()
                                 .fg(Color::Yellow)
-                                .add_modifier(Modifier::BOLD)
-                        } else if is_maxed {
-                            // Style spécial pour les améliorations au max
-                            Style::default()
-                                .fg(Color::Green)
                                 .add_modifier(Modifier::BOLD)
                         } else {
                             Style::default().fg(Color::White)
                         };
 
-                        action_items.push(ListItem::new(Span::styled(bonus, style)));
+                        let content = Paragraph::new(description.clone())
+                            .alignment(Alignment::Left)
+                            .style(style);
+
+                        let price = match is_maxed {
+                            true => "Maxed".to_string(),
+                            false => format!("{} 💰", cost.unwrap()),
+                        };
+
+                        let price = Paragraph::new(price)
+                            .alignment(Alignment::Right)
+                            .style(style);
+
+                        frame.render_widget(content, chunks[0]);
+                        frame.render_widget(price, chunks[1]);
+
+                        let empty_item = ListItem::new("");
+                        action_items.push(empty_item);
                     }
-                }
-            } else {
-                // Afficher la liste des tours disponibles pour amélioration
-                action_items.push(ListItem::new(Span::styled(
-                    "Sélectionnez une tour à améliorer:",
-                    Style::default()
-                        .fg(Color::White)
-                        .add_modifier(Modifier::BOLD),
-                )));
-                action_items.push(ListItem::new(""));
-
-                // Afficher toutes les tours disponibles
-                for (i, tower) in app.game.towers.iter().enumerate() {
-                    let position = tower.position;
-                    let level = tower.level;
-                    let cost = tower.upgrade_cost(level);
-
-                    let tower_info = format!(
-                        "Tour {} ({},{}) - Niveau {} - 💰 {} pour améliorer",
-                        tower.name.clone(),
-                        position.x,
-                        position.y,
-                        level,
-                        cost
-                    );
-
-                    // Mettre en surbrillance la tour sélectionnée
-                    let style = if i == app.selected_index {
-                        Style::default()
-                            .fg(Color::Yellow)
-                            .add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default().fg(Color::White)
-                    };
-
-                    action_items.push(ListItem::new(Span::styled(tower_info, style)));
-                }
-
-                // Si aucune tour n'est disponible
-                if app.game.towers.is_empty() {
-                    action_items.push(ListItem::new("Aucune tour disponible pour amélioration"));
                 }
             }
 
-            let upgrade_list = List::new(action_items)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title("Améliorer une tour"),
-                )
-                .style(Style::default().fg(Color::White));
+            let upgrade_list = List::new(action_items).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Améliorer une tour"),
+            );
 
             frame.render_widget(upgrade_list, area);
         }

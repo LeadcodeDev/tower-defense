@@ -6,9 +6,7 @@ use uuid::Uuid;
 use crate::domain::entities::{
     behavior::TowerBehavior,
     position::Position,
-    tower::{
-        TargetSelection, Tower, TowerKind, TowerMeta, TowerStatElement, TowerStats, TowerUpgrades,
-    },
+    tower::{TargetSelection, Tower, TowerKind, TowerMeta},
 };
 
 pub struct MineTower {
@@ -23,12 +21,7 @@ impl MineTower {
             1,
             45,
             position,
-            TowerStats {
-                range: TowerStatElement::new(1.0, 1),
-                damage: None,
-                attacks_per_second: None,
-            },
-            TowerUpgrades::new(45, None, None, None),
+            vec![],
             TowerMeta {
                 aoe: None,
                 behavior: TowerBehavior::Basic,

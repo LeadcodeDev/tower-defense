@@ -13,7 +13,7 @@ impl ForestMap {
             "Forêt Enchantée".to_string(),
             "Une forêt dense et mystérieuse".to_string(),
             "🌵".to_string(),
-            "🚀".to_string(),
+            "🏠".to_string(),
             vec![
                 start_position,
                 Position::new(5, 7),

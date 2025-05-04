@@ -6,18 +6,14 @@ use std::{
 use rand::{Rng, rng};
 
 use crate::{
-    application::engine::towers::{
-        air_tower::AirTower, basic_tower::BasicTower, earth_tower::EarthTower,
-        fire_tower::FireTower, sentinel_tower::SentinelTower,
-    },
-    infrastructure::ui::{app::App, notifications::Notifier},
+    application::engine::towers::{fire_tower::FireTower, sentinel_tower::SentinelTower},
+    infrastructure::ui::notifications::Notifier,
 };
 
 use super::{
     map::Map,
-    monster::Monster,
     position::Position,
-    tower::{Tower, UpgradeType},
+    tower::{Tower, TowerStatType},
     wave::Wave,
 };
 
@@ -83,22 +79,8 @@ impl Game {
         }
     }
 
-    pub fn add_basic_tower(&mut self, position: Position) {
-        self.towers.push(BasicTower::positionned(position));
-    }
-
     pub fn add_fire_tower(&mut self, position: Position) {
         self.towers.push(FireTower::positionned(position));
-    }
-
-    pub fn add_water_tower(&mut self, position: Position) {}
-
-    pub fn add_earth_tower(&mut self, position: Position) {
-        self.towers.push(EarthTower::positionned(position));
-    }
-
-    pub fn add_air_tower(&mut self, position: Position) {
-        self.towers.push(AirTower::positionned(position));
     }
 
     pub fn add_sentinel_tower(&mut self, position: Position) {
@@ -354,114 +336,44 @@ impl Game {
         }
     }
 
-    pub fn upgrade_tower_attack_speed(&mut self, tower_index: usize) -> Result<String, String> {
+    pub fn upgrade_tower(
+        &mut self,
+        tower_index: usize,
+        upgrade_type: TowerStatType,
+    ) -> Result<String, String> {
         if tower_index >= self.towers.len() {
             let message = "❌ Invalid tower index".to_string();
             self.add_log(message.clone());
             return Err(message);
         }
 
-        let tower = &self.towers[tower_index];
-        let upgrade_type = UpgradeType::AttackSpeed;
-        let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
+        let tower_name = self.towers[tower_index].name.clone();
+        let upgrade_cost =
+            self.towers[tower_index].upgrade_cost_for_attribute(upgrade_type.clone());
 
-        // Vérifier si l'amélioration est au maximum (coût = 0)
-        if upgrade_cost == 0 {
-            let message = "❌ Amélioration déjà au niveau maximum".to_string();
-            self.add_log(message.clone());
-            return Err(message);
-        }
-
-        if !self.has_enough_money(upgrade_cost) {
-            let message = format!("❌ Missing money ({})", self.money);
-            self.add_log(message.clone());
-            return Err(message);
-        }
-
-        match self.towers[tower_index].upgrade_attack_speed() {
-            Ok(_) => {
-                self.spend_money(upgrade_cost);
-                self.add_log("Attack speed upgraded".to_string());
-                Ok("Attack speed upgraded".to_string())
+        if let Some(cost) = upgrade_cost {
+            if !self.has_enough_money(cost) {
+                let message = format!("❌ Missing money ({})", self.money);
+                self.add_log(message.clone());
+                return Err(message);
             }
-            Err(error) => {
-                self.add_log(error.clone());
-                Err(error)
+
+            match self.towers[tower_index].upgrade(upgrade_type) {
+                Ok(_) => {
+                    self.spend_money(cost);
+                    self.add_log(format!("🔧 Tour {} améliorée", tower_name));
+
+                    Ok("Tower upgraded".to_string())
+                }
+                Err(error) => {
+                    self.add_log(error.clone());
+                    Err(error.to_string())
+                }
             }
-        }
-    }
-
-    pub fn upgrade_tower_damage(&mut self, tower_index: usize) -> Result<String, String> {
-        if tower_index >= self.towers.len() {
-            let message = "❌ Invalid tower index".to_string();
+        } else {
+            let message = "Upgrade not available".to_string();
             self.add_log(message.clone());
             return Err(message);
-        }
-
-        let tower = &self.towers[tower_index];
-        let upgrade_cost = tower.upgrade_cost_for_attribute(UpgradeType::Damage);
-
-        // Vérifier si l'amélioration est au maximum (coût = 0)
-        if upgrade_cost == 0 {
-            let message = "❌ Amélioration déjà au niveau maximum".to_string();
-            self.add_log(message.clone());
-            return Err(message);
-        }
-
-        if !self.has_enough_money(upgrade_cost) {
-            let message = format!("❌ Missing money ({})", self.money);
-            self.add_log(message.clone());
-            return Err(message);
-        }
-
-        match self.towers[tower_index].upgrade_damage() {
-            Ok(_) => {
-                self.spend_money(upgrade_cost);
-                let tower_type = self.towers[tower_index].name.clone();
-                self.add_log(format!("🔧 Tour {} améliorée: Dégâts +", tower_type));
-                Ok("Damage upgraded".to_string())
-            }
-            Err(error) => {
-                self.add_log(error.clone());
-                Err(error)
-            }
-        }
-    }
-
-    pub fn upgrade_tower_range(&mut self, tower_index: usize) -> Result<String, String> {
-        if tower_index >= self.towers.len() {
-            let message = "❌ Invalid tower index".to_string();
-            self.add_log(message.clone());
-            return Err(message);
-        }
-
-        let tower = &self.towers[tower_index];
-        let upgrade_type = UpgradeType::Range;
-        let upgrade_cost = tower.upgrade_cost_for_attribute(upgrade_type);
-
-        // Vérifier si l'amélioration est au maximum (coût = 0)
-        if upgrade_cost == 0 {
-            let message = "❌ Amélioration déjà au niveau maximum".to_string();
-            self.add_log(message.clone());
-            return Err(message);
-        }
-
-        if !self.has_enough_money(upgrade_cost) {
-            let message = format!("❌ Missing money ({})", self.money);
-            self.add_log(message.clone());
-            return Err(message);
-        }
-
-        match self.towers[tower_index].upgrade_range() {
-            Ok(_) => {
-                self.spend_money(upgrade_cost);
-                self.add_log("Range upgraded".to_string());
-                Ok("Range upgraded".to_string())
-            }
-            Err(error) => {
-                self.add_log(error.clone());
-                Err(error)
-            }
         }
     }
 }

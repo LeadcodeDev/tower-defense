@@ -1,17 +1,13 @@
 use crate::application::engine::maps::cave::CaveMap;
 use crate::application::engine::maps::desert::DesertMap;
 use crate::application::engine::maps::forest::ForestMap;
-use crate::application::engine::towers::air_tower::AirTower;
-use crate::application::engine::towers::basic_tower::BasicTower;
-use crate::application::engine::towers::earth_tower::EarthTower;
 use crate::application::engine::towers::fire_tower::FireTower;
-use crate::application::engine::towers::ice_tower::IceTower;
 use crate::application::engine::towers::mine_tower::MineTower;
 use crate::application::engine::towers::sentinel_tower::SentinelTower;
 use crate::domain::entities::map::Map;
-use crate::domain::entities::tower::{Tower, UpgradeType};
+use crate::domain::entities::tower::TowerKind;
+use crate::domain::entities::tower::{Tower, TowerStatType};
 use crate::domain::entities::{game::Game, position::Position};
-use crate::domain::entities::{tower::TowerKind, wave::Wave};
 use color_eyre::Result;
 use crossterm::event::KeyCode;
 use rand::{rng, seq::IndexedRandom};
@@ -95,19 +91,15 @@ pub enum UiMode {
 pub struct UpgradeMenu {
     pub tower_index: usize,
     pub selected_upgrade: usize,
-    pub available_upgrades: Vec<(UpgradeType, String)>,
+    pub available_upgrades: Vec<(TowerStatType, String)>,
 }
 
 impl UpgradeMenu {
-    pub fn new(tower_index: usize) -> Self {
+    pub fn new(tower_index: usize, available_upgrades: Vec<(TowerStatType, String)>) -> Self {
         Self {
             tower_index,
             selected_upgrade: 0,
-            available_upgrades: vec![
-                (UpgradeType::AttackSpeed, "Vitesse d'attaque".to_string()),
-                (UpgradeType::Damage, "Dégâts".to_string()),
-                (UpgradeType::Range, "Portée".to_string()),
-            ],
+            available_upgrades,
         }
     }
 }
@@ -162,10 +154,7 @@ impl App {
             selected_index: 0,
             available_actions: actions,
             available_towers: vec![
-                BasicTower::positionned(Position::new(0, 0)),
                 FireTower::positionned(Position::new(0, 0)),
-                EarthTower::positionned(Position::new(0, 0)),
-                AirTower::positionned(Position::new(0, 0)),
                 SentinelTower::positionned(Position::new(0, 0)),
                 MineTower::positionned(Position::new(0, 0)),
             ],
@@ -352,22 +341,18 @@ impl App {
                         match action {
                             GameAction::BuildTower => {
                                 self.ui_mode = UiMode::TowerSelection;
-                                self.selected_index = 0; // Réinitialiser l'index de sélection
+                                self.selected_index = 0;
                                 self.tower_selection_on_map = false;
                             }
                             GameAction::RemoveTower => {
                                 self.ui_mode = UiMode::Placement;
-                                self.selected_tower = None; // Pas de tour sélectionnée = mode suppression
+                                self.selected_tower = None;
                                 self.tower_selection_on_map = false;
                             }
                             GameAction::UpgradeTower => {
                                 if !self.game.towers.is_empty() {
-                                    // Passer directement en mode placement pour sélectionner une tour sur la carte
                                     self.ui_mode = UiMode::Placement;
-                                    self.selected_tower = None; // Pas de tour sélectionnée = mode amélioration
-                                    self.cursor_position = self.game.towers[0].position; // Commencer sur la première tour
-                                } else {
-                                    self.game.add_log("Aucune tour à améliorer.".to_string());
+                                    self.selected_tower = None;
                                 }
                             }
                         }
@@ -537,45 +522,24 @@ impl App {
             keep_selection.unwrap_or(0)
         };
 
-        let (tower_type, level, cost_attack_speed, cost_damage, cost_range) = {
-            let tower = &self.game.towers[index];
-            (
-                tower.name.clone(),
-                tower.level,
-                tower.upgrade_cost_for_attribute(UpgradeType::AttackSpeed),
-                tower.upgrade_cost_for_attribute(UpgradeType::Damage),
-                tower.upgrade_cost_for_attribute(UpgradeType::Range),
-            )
-        };
-
+        let tower = &self.game.towers[index].clone();
         self.game
-            .add_log(format!("🔍 Tour {} (Niveau {})", tower_type, level));
-        self.game.add_log(format!(
-            "💰 Vitesse d'attaque: {} pièces",
-            cost_attack_speed
-        ));
-        self.game
-            .add_log(format!("💰 Dégâts: {} pièces", cost_damage));
-        self.game
-            .add_log(format!("💰 Portée: {} pièces", cost_range));
+            .add_log(format!("🔍 Tour {} (Niveau {})", tower.name, tower.level));
 
         let tower = &self.game.towers[index];
         let mut upgrades = vec![];
 
-        if let Some(attacks_per_second) = &tower.stats.attacks_per_second {
-            upgrades.push((
-                UpgradeType::AttackSpeed,
-                format!("⚡️ {:.2}/s Attack speed", attacks_per_second.base),
-            ));
-        }
-        if let Some(damage) = &tower.stats.damage {
-            upgrades.push((UpgradeType::Damage, format!("💥 {:.2} Damage", damage.base)));
-        }
+        let upgradeable_stats = tower
+            .stats
+            .iter()
+            .filter(|stat| stat.upgrade.is_some())
+            .collect::<Vec<_>>();
 
-        upgrades.push((
-            UpgradeType::Range,
-            format!("🔄 {:.2} Range", tower.stats.range.base),
-        ));
+        for element in upgradeable_stats {
+            if let Ok(format) = element.upgrade.as_ref().unwrap().format(element) {
+                upgrades.push((element.stat_type.clone(), format));
+            }
+        }
 
         self.upgrade_menu = Some(UpgradeMenu {
             tower_index: index,
@@ -592,24 +556,18 @@ impl App {
             let current_selection = upgrade_menu.selected_upgrade;
 
             if current_selection < upgrade_menu.available_upgrades.len() {
-                let (upgrade_type, _) = upgrade_menu.available_upgrades[current_selection];
+                let (upgrade_type, _) = &upgrade_menu.available_upgrades[current_selection];
 
                 let tower = &self.game.towers[tower_index];
-                let cost = tower.upgrade_cost_for_attribute(upgrade_type);
+                let cost = tower.upgrade_cost_for_attribute(upgrade_type.clone());
 
-                if cost == 0 {
+                if cost.is_none() {
                     self.game
                         .add_log(format!("❌ Cette amélioration est déjà au niveau maximum."));
                     return;
                 }
 
-                let successful_upgrade = match upgrade_type {
-                    UpgradeType::AttackSpeed => self.game.upgrade_tower_attack_speed(tower_index),
-                    UpgradeType::Damage => self.game.upgrade_tower_damage(tower_index),
-                    UpgradeType::Range => self.game.upgrade_tower_range(tower_index),
-                };
-
-                if let Ok(_) = successful_upgrade {
+                if let Ok(_) = self.game.upgrade_tower(tower_index, upgrade_type.clone()) {
                     if tower_index < self.game.towers.len() {
                         self.upgrade_tower(tower_index, Some(current_selection));
                         return;

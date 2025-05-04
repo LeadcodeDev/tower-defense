@@ -1,8 +1,6 @@
 use ratatui::style::Color;
 use uuid::Uuid;
 
-use crate::infrastructure::ui::app::App;
-
 use super::game::Game;
 use super::{
     behavior::TowerBehavior, element::Element, monster::Monster, position::Position, wave::Wave,
@@ -34,19 +32,63 @@ impl Default for TargetSelection {
     }
 }
 
-/// Structure de base pour toutes les tourelles
-#[derive(Debug, Clone)]
-pub struct TowerStats {
-    pub range: TowerStatElement,
-    pub damage: Option<TowerStatDamageElement>,
-    pub attacks_per_second: Option<TowerStatElement>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TowerStatType {
+    Range,
+    Damage,
+    AttackSpeed,
 }
 
-#[derive(Debug, Clone)]
-pub struct BaseStats {
-    pub range: f32,
-    pub damage: f32,
-    pub attacks_per_second: f32,
+#[derive(Clone)]
+pub struct TowerStatUpgrade {
+    pub price_multiplier: f32,
+    pub value_multiplier: f32,
+    pub value_multiplier_unit: TowerUpgradeElementUnit,
+    pub max_level: u32,
+}
+
+impl TowerStatUpgrade {
+    pub fn format(&self, stat: &TowerStats) -> Result<String, ()> {
+        if self.max_level == stat.level {
+            return Ok(format!("{} {:.2} {}", stat.icon, stat.base, stat.label));
+        }
+
+        let unit = match &self.value_multiplier_unit {
+            TowerUpgradeElementUnit::Percent => "%",
+            TowerUpgradeElementUnit::Unit => "",
+        };
+
+        let symbol = match self.value_multiplier_unit {
+            TowerUpgradeElementUnit::Percent => "x",
+            TowerUpgradeElementUnit::Unit => "+",
+        };
+
+        Ok(format!(
+            "{} {:.2} {} ({}{:.2}{})",
+            stat.icon, stat.base, stat.label, symbol, self.value_multiplier, unit
+        ))
+    }
+}
+
+#[derive(Clone)]
+pub struct TowerStats {
+    pub stat_type: TowerStatType,
+    pub label: String,
+    pub icon: String,
+    pub base: f32,
+    pub level: u32,
+    pub upgrade: Option<TowerStatUpgrade>,
+}
+
+impl TowerStats {
+    pub fn get_next_price(&self) -> Option<u32> {
+        if let Some(upgrade) = &self.upgrade {
+            let base = (self.base * 1.3_f32.powi(self.level as i32)).round() as u32;
+            Some((base as f32 * upgrade.price_multiplier).round() as u32)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -166,8 +208,7 @@ pub struct Tower {
     pub symbol: String,
     pub level: u32,
     pub cost: u32,
-    pub stats: TowerStats,
-    pub upgrades: TowerUpgrades,
+    pub stats: Vec<TowerStats>,
     pub meta: TowerMeta,
     pub position: Position,
     pub last_attack: f32,
@@ -182,8 +223,7 @@ impl Tower {
         level: u32,
         cost: u32,
         position: Position,
-        stats: TowerStats,
-        upgrades: TowerUpgrades,
+        stats: Vec<TowerStats>,
         meta: TowerMeta,
         on_action: Option<Rc<dyn Fn(&mut Game, &mut Tower) -> Result<(), String>>>,
     ) -> Self {
@@ -194,7 +234,6 @@ impl Tower {
             level,
             cost,
             stats,
-            upgrades,
             meta,
             position,
             last_attack: 0.0,
@@ -204,9 +243,14 @@ impl Tower {
     }
 
     pub fn can_shoot(&self, current_time: f32) -> bool {
-        if let Some(attacks_per_second) = &self.stats.attacks_per_second {
+        let attack_speed = self
+            .stats
+            .iter()
+            .find(|stat| stat.stat_type == TowerStatType::AttackSpeed);
+
+        if let Some(attack_speed) = attack_speed {
             let time_since_last_attack = current_time - self.last_attack;
-            time_since_last_attack >= 1.0 / attacks_per_second.base
+            time_since_last_attack >= 1.0 / attack_speed.base
         } else {
             true
         }
@@ -217,141 +261,42 @@ impl Tower {
         self.level
     }
 
-    pub fn upgrade_attack_speed(&mut self) -> Result<(), String> {
-        // Niveau maximum selon le type de tour
-        let max_level = if self.meta.tower_type == TowerKind::Earth {
-            10
-        } else {
-            30
-        };
+    pub fn upgrade(&mut self, upgrade_type: TowerStatType) -> Result<(), String> {
+        let element = self
+            .stats
+            .iter_mut()
+            .find(|stat| stat.stat_type == upgrade_type);
 
-        if let Some(upgrades) = &mut self.upgrades.attacks_speed {
-            if upgrades.level >= max_level {
-                return Err(format!("La vitesse d'attaque est déjà au niveau maximum."));
-            }
-        }
-
-        if let Some(attacks_per_second) = &self.stats.attacks_per_second {
-            let current = attacks_per_second.base;
-
-            if let Some(upgrades) = &mut self.upgrades.attacks_speed {
-                upgrades.level += 1;
-
-                if let Some(attacks_per_second) = &mut self.stats.attacks_per_second {
-                    attacks_per_second.base = match upgrades.value_multiplier_unit {
-                        TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
-                        TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
-                    };
+        if let Some(element) = element {
+            if let Some(upgrade) = &element.upgrade {
+                if element.level >= upgrade.max_level {
+                    return Err(format!("La vitesse d'attaque est déjà au niveau maximum."));
                 }
 
-                Ok(())
-            } else {
-                Err(format!("La vitesse d'attaque ne peut pas être améliorée."))
-            }
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn upgrade_damage(&mut self) -> Result<(), String> {
-        let max_level = if self.meta.tower_type == TowerKind::Earth {
-            10
-        } else {
-            30
-        };
-
-        if self.upgrades.damage.as_ref().unwrap().level >= max_level {
-            return Err(format!("Les dégâts sont déjà au niveau maximum."));
-        }
-
-        if let Some(damage) = &mut self.stats.damage {
-            let current = damage.base;
-
-            if let Some(upgrades) = &mut self.upgrades.damage {
-                upgrades.level += 1;
-                damage.base = match upgrades.value_multiplier_unit {
-                    TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
-                    TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
+                element.level += 1;
+                element.base = match upgrade.value_multiplier_unit {
+                    TowerUpgradeElementUnit::Percent => element.base * upgrade.value_multiplier,
+                    TowerUpgradeElementUnit::Unit => element.base + upgrade.value_multiplier,
                 };
             }
 
             Ok(())
         } else {
-            Err(format!("Les dégâts ne peuvent pas être améliorés."))
-        }
-    }
-
-    pub fn upgrade_range(&mut self) -> Result<(), String> {
-        let max_level = if self.meta.tower_type == TowerKind::Earth {
-            10
-        } else {
-            30
-        };
-
-        if let Some(upgrades) = &mut self.upgrades.range {
-            if upgrades.level >= max_level {
-                return Err(format!("La portée est déjà au niveau maximum."));
-            }
-        }
-
-        let current = self.stats.range.base;
-
-        if let Some(upgrades) = &mut self.upgrades.range {
-            upgrades.level += 1;
-            self.stats.range.base = match upgrades.value_multiplier_unit {
-                TowerUpgradeElementUnit::Percent => current * upgrades.value_multiplier,
-                TowerUpgradeElementUnit::Unit => current + upgrades.value_multiplier,
-            };
-
             Ok(())
-        } else {
-            Err(format!("La portée ne peut pas être améliorée."))
         }
     }
 
-    pub fn upgrade_cost(&self, level: u32) -> u32 {
-        let exponential_factor = 1.5_f32.powi(level as i32);
-        let linear_component = 20 * level;
-
-        (self.upgrades.base_cost as f32 * exponential_factor + linear_component as f32).round()
-            as u32
-    }
-
-    pub fn upgrade_cost_for_attribute(&self, upgrade_type: UpgradeType) -> u32 {
-        let level = match upgrade_type {
-            UpgradeType::Damage => self.upgrades.damage.as_ref().unwrap().level,
-            UpgradeType::AttackSpeed => self.upgrades.attacks_speed.as_ref().unwrap().level,
-            UpgradeType::Range => self.upgrades.range.as_ref().unwrap().level,
-        };
-
-        // Vérifier si on a atteint le niveau maximum
-        let max_level = if self.meta.tower_type == TowerKind::Earth {
-            // Niveau maximum spécifique pour la tour de terre
-            10
-        } else {
-            // Niveau maximum par défaut pour les autres tours
-            30
-        };
-
-        if level >= max_level {
-            return 0; // Coût de 0 indique que l'amélioration est au maximum
-        }
-
-        let base = (self.upgrades.base_cost as f32 * 1.3_f32.powi(level as i32)).round() as u32;
-
-        let synergy_factor = match upgrade_type {
-            UpgradeType::Damage => self.upgrades.damage.as_ref().unwrap().price_multiplier,
-            UpgradeType::AttackSpeed => {
-                self.upgrades
-                    .attacks_speed
-                    .as_ref()
-                    .unwrap()
-                    .price_multiplier
+    pub fn upgrade_cost_for_attribute(&self, stat: TowerStatType) -> Option<u32> {
+        let stat = self.stats.iter().find(|s| s.stat_type == stat);
+        if let Some(stat) = stat {
+            if stat.level >= stat.upgrade.as_ref().unwrap().max_level {
+                return None;
             }
-            UpgradeType::Range => self.upgrades.range.as_ref().unwrap().price_multiplier,
-        };
 
-        (base as f32 * synergy_factor).round() as u32
+            stat.get_next_price()
+        } else {
+            None
+        }
     }
 
     pub fn shoot(&mut self, game: &mut Game, current_time: f32) -> Vec<String> {
@@ -394,21 +339,21 @@ impl Tower {
         }
 
         // Traiter chaque cible primaire et les cibles AOE si applicable
-        for target_idx in primary_targets {
-            if let Some(target_monster) = current_wave.monsters.get(target_idx) {
-                if !target_monster.active {
-                    continue;
-                }
+        let damage = self
+            .stats
+            .iter()
+            .find(|stat| stat.stat_type == TowerStatType::Damage);
 
-                if let Some(damage) = &self.stats.damage {
+        if let Some(damage) = damage {
+            for target_idx in primary_targets {
+                if let Some(target_monster) = current_wave.monsters.get(target_idx) {
+                    if !target_monster.active {
+                        continue;
+                    }
+
                     if let Some(monster) = current_wave.monsters.get_mut(target_idx) {
                         let actual_damage = self.meta.behavior.apply(monster, damage.base);
                         monster.hp -= actual_damage;
-
-                        logs.push(format!(
-                            "🏹 Tourelle {:?} attaque! -{:.1} HP sur {}. HP restants: {:.1}",
-                            damage.element, actual_damage, monster.name, monster.hp
-                        ));
                     }
 
                     if let Some(aoe) = &self.meta.aoe {
@@ -437,50 +382,52 @@ impl Tower {
     }
 
     fn find_nearest_target(&self, wave: &Wave) -> Option<usize> {
-        let tower_pos = self.position;
-        let mut nearest_idx = None;
-        let mut min_distance = f32::MAX;
+        let range = self
+            .stats
+            .iter()
+            .find(|stat| stat.stat_type == TowerStatType::Range);
 
-        for (idx, monster) in wave.monsters.iter().enumerate() {
-            if !monster.active {
-                continue;
+        if let Some(range) = range {
+            let tower_pos = self.position;
+            let mut nearest_idx = None;
+            let mut min_distance = f32::MAX;
+
+            for (idx, monster) in wave.monsters.iter().enumerate() {
+                if !monster.active {
+                    continue;
+                }
+
+                let dx = (monster.position.x - tower_pos.x) as f32;
+                let dy = (monster.position.y - tower_pos.y) as f32;
+                let distance = (dx * dx + dy * dy).sqrt();
+
+                if distance <= range.base && distance < min_distance {
+                    min_distance = distance;
+                    nearest_idx = Some(idx);
+                }
             }
 
+            nearest_idx
+        } else {
+            None
+        }
+    }
+
+    fn is_in_range(&self, monster: &Monster) -> bool {
+        let range = self
+            .stats
+            .iter()
+            .find(|stat| stat.stat_type == TowerStatType::Range);
+
+        if let Some(range) = range {
+            let tower_pos = self.position;
             let dx = (monster.position.x - tower_pos.x) as f32;
             let dy = (monster.position.y - tower_pos.y) as f32;
             let distance = (dx * dx + dy * dy).sqrt();
 
-            if distance <= self.stats.range.base && distance < min_distance {
-                min_distance = distance;
-                nearest_idx = Some(idx);
-            }
+            distance <= range.base
+        } else {
+            false
         }
-
-        nearest_idx
     }
-
-    fn is_in_range(&self, monster: &Monster) -> bool {
-        let tower_pos = self.position;
-        let dx = (monster.position.x - tower_pos.x) as f32;
-        let dy = (monster.position.y - tower_pos.y) as f32;
-        let distance = (dx * dx + dy * dy).sqrt();
-
-        distance <= self.stats.range.base
-    }
-
-    /// Retourne true si toutes les améliorations de la tour sont au niveau maximum
-    pub fn is_fully_upgraded(&self) -> bool {
-        // Vérifier si toutes les améliorations sont au niveau maximum
-        self.upgrades.attacks_speed.as_ref().unwrap().level >= 30
-            && self.upgrades.damage.as_ref().unwrap().level >= 30
-            && self.upgrades.range.as_ref().unwrap().level >= 30
-    }
-}
-
-/// Types d'améliorations disponibles
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UpgradeType {
-    AttackSpeed,
-    Damage,
-    Range,
 }

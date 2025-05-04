@@ -1,12 +1,13 @@
+use std::rc::Rc;
+
 use uuid::Uuid;
 
 use crate::domain::entities::{
     behavior::TowerBehavior,
-    element::Element,
     position::Position,
     tower::{
-        BaseStats, TargetSelection, Tower, TowerAoe, TowerKind, TowerMeta, TowerStatDamageElement,
-        TowerStatElement, TowerStats, TowerUpgradeElement, TowerUpgradeElementUnit, TowerUpgrades,
+        TargetSelection, Tower, TowerKind, TowerMeta, TowerStatType, TowerStatUpgrade, TowerStats,
+        TowerUpgradeElementUnit,
     },
 };
 
@@ -20,29 +21,34 @@ impl FireTower {
             1,
             45,
             position,
-            TowerStats {
-                range: TowerStatElement::new(5.0, 1),
-                damage: Some(TowerStatDamageElement::new(25.0, 1, Element::Air)),
-                attacks_per_second: Some(TowerStatElement::new(5.0, 1)),
-            },
-            TowerUpgrades::new(
-                45,
-                Some(TowerUpgradeElement::new(
-                    3.0,
-                    0.5,
-                    TowerUpgradeElementUnit::Unit,
-                )),
-                Some(TowerUpgradeElement::new(
-                    12.0,
-                    1.25,
-                    TowerUpgradeElementUnit::Unit,
-                )),
-                Some(TowerUpgradeElement::new(
-                    1.0,
-                    0.2,
-                    TowerUpgradeElementUnit::Unit,
-                )),
-            ),
+            vec![
+                TowerStats {
+                    stat_type: TowerStatType::Range,
+                    label: "Range".to_string(),
+                    icon: "🔥".to_string(),
+                    base: 5.0,
+                    level: 1,
+                    upgrade: Some(TowerStatUpgrade {
+                        price_multiplier: 1.5,
+                        value_multiplier: 1.2,
+                        value_multiplier_unit: TowerUpgradeElementUnit::Unit,
+                        max_level: 10,
+                    }),
+                },
+                TowerStats {
+                    stat_type: TowerStatType::Damage,
+                    label: "Damage".to_string(),
+                    icon: "🔥".to_string(),
+                    base: 10.0,
+                    level: 1,
+                    upgrade: Some(TowerStatUpgrade {
+                        price_multiplier: 1.8,
+                        value_multiplier: 18.0,
+                        value_multiplier_unit: TowerUpgradeElementUnit::Unit,
+                        max_level: 10,
+                    }),
+                },
+            ],
             TowerMeta {
                 aoe: None,
                 behavior: TowerBehavior::Basic,

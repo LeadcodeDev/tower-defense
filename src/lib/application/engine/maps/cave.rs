@@ -13,7 +13,7 @@ impl CaveMap {
             "Caverne Profonde".to_string(),
             "Une caverne profonde et sombre".to_string(),
             "🌵".to_string(),
-            "🚀".to_string(),
+            "🏠".to_string(),
             vec![
                 start_position,
                 Position::new(3, 5),

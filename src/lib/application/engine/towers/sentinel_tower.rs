@@ -6,10 +6,7 @@ use crate::{
     domain::entities::{
         behavior::TowerBehavior,
         position::Position,
-        tower::{
-            TargetSelection, Tower, TowerKind, TowerMeta, TowerStatElement, TowerStats,
-            TowerUpgrades,
-        },
+        tower::{TargetSelection, Tower, TowerKind, TowerMeta, TowerStatType, TowerStats},
     },
     infrastructure::ui::notifications::Notifier,
 };
@@ -26,12 +23,14 @@ impl SentinelTower {
             1,
             45,
             position,
-            TowerStats {
-                range: TowerStatElement::new(1.0, 1),
-                damage: None,
-                attacks_per_second: None,
-            },
-            TowerUpgrades::new(45, None, None, None),
+            vec![TowerStats {
+                stat_type: TowerStatType::Range,
+                label: "Range".to_string(),
+                icon: "🔭".to_string(),
+                base: 5.0,
+                level: 1,
+                upgrade: None,
+            }],
             TowerMeta {
                 aoe: None,
                 behavior: TowerBehavior::Basic,
@@ -49,7 +48,14 @@ impl SentinelTower {
 
                     for monster in monsters {
                         let distance = tower.position.distance_to(&monster.position);
-                        if distance <= tower.stats.range.base {
+                        let range = tower
+                            .stats
+                            .iter()
+                            .find(|stat| stat.stat_type == TowerStatType::Range)
+                            .unwrap()
+                            .base;
+
+                        if distance <= range {
                             monsters_detected = true;
                             monster.detected.push(tower.id);
 

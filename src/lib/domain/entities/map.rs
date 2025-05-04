@@ -1,4 +1,4 @@
-use super::{monster::Monster, position::Position, wave::Wave};
+use super::{monster::Monster, position::Position};
 use std::rc::Rc;
 
 pub trait TerrainModifier: Fn() -> f32 + Clone {}
