@@ -18,14 +18,24 @@ impl SentinelTower {
             1,
             45,
             position,
-            vec![TowerStats {
-                stat_type: TowerStatType::Range,
-                label: "Range".to_string(),
-                icon: "🔭".to_string(),
-                base: 2.0,
-                level: 1,
-                upgrade: None,
-            }],
+            vec![
+                TowerStats {
+                    stat_type: TowerStatType::Range,
+                    label: "Range".to_string(),
+                    icon: "🔭".to_string(),
+                    base: 2.0,
+                    level: 1,
+                    upgrade: None,
+                },
+                TowerStats {
+                    stat_type: TowerStatType::AttackSpeed,
+                    label: "Attack Speed".to_string(),
+                    icon: "⏰".to_string(),
+                    base: 1.0,
+                    level: 1,
+                    upgrade: None,
+                },
+            ],
             None,
             Some(Rc::new(|mediator, game, tower| {
                 let mut monsters_detected = false;

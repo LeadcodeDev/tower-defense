@@ -59,7 +59,7 @@ impl FireTower {
                 },
             ],
             Some(vec![
-                TowerMeta::AoeEffect(TowerAoe::Radius(10, 50.0)),
+                TowerMeta::AoeEffect(TowerAoe::Radius(3, 0.5)),
                 TowerMeta::Behavior(TowerBehavior::Basic),
                 TowerMeta::TargetSelection(TargetSelection::Nearest),
             ]),
