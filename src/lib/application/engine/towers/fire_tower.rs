@@ -6,8 +6,8 @@ use crate::domain::entities::{
     behavior::TowerBehavior,
     position::Position,
     tower::{
-        TargetSelection, Tower, TowerKind, TowerMeta, TowerStatType, TowerStatUpgrade, TowerStats,
-        TowerUpgradeElementUnit,
+        TargetSelection, Tower, TowerAoe, TowerKind, TowerMeta, TowerStatType, TowerStatUpgrade,
+        TowerStats, TowerUpgradeElementUnit,
     },
 };
 
@@ -49,12 +49,11 @@ impl FireTower {
                     }),
                 },
             ],
-            TowerMeta {
-                aoe: None,
-                behavior: TowerBehavior::Basic,
-                target_selection: TargetSelection::Nearest,
-                tower_type: TowerKind::Fire,
-            },
+            Some(vec![
+                TowerMeta::AoeEffect(TowerAoe::Radius(10, 50.0)),
+                TowerMeta::Behavior(TowerBehavior::Basic),
+                TowerMeta::TargetSelection(TargetSelection::Nearest),
+            ]),
             None,
         )
     }

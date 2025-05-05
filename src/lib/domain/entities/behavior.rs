@@ -1,6 +1,6 @@
 use super::monster::Monster;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TowerBehavior {
     Basic,
     Frost { slow_factor: f32 },

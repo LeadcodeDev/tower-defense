@@ -1,15 +1,10 @@
 use std::rc::Rc;
 
 use ratatui::style::Color;
-use uuid::Uuid;
 
 use crate::domain::entities::{
-    behavior::TowerBehavior,
     position::Position,
-    tower::{
-        TargetSelection, Tower, TowerKind, TowerMeta, TowerStatType, TowerStatUpgrade, TowerStats,
-        TowerUpgradeElementUnit,
-    },
+    tower::{Tower, TowerStatType, TowerStatUpgrade, TowerStats, TowerUpgradeElementUnit},
 };
 
 pub struct MineTower;
@@ -35,12 +30,7 @@ impl MineTower {
                     max_level: 10,
                 }),
             }],
-            TowerMeta {
-                aoe: None,
-                behavior: TowerBehavior::Basic,
-                target_selection: TargetSelection::Nearest,
-                tower_type: TowerKind::Fire,
-            },
+            None,
             Some(Rc::new(|_, game, tower| {
                 tower.highlight = if tower.highlight.is_some() {
                     None

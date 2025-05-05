@@ -13,7 +13,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 /// Stratégie de sélection de cible pour les tourelles
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TargetSelection {
     /// Cible les monstres volants
     Flying,
@@ -177,18 +177,17 @@ impl TowerStatDamageElement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TowerAoe {
     Radius(u32, f32),
     Count(u32, f32),
 }
 
-#[derive(Debug, Clone)]
-pub struct TowerMeta {
-    pub behavior: TowerBehavior,
-    pub target_selection: TargetSelection,
-    pub tower_type: TowerKind,
-    pub aoe: Option<TowerAoe>,
+#[derive(Clone, PartialEq)]
+pub enum TowerMeta {
+    AoeEffect(TowerAoe),
+    Behavior(TowerBehavior),
+    TargetSelection(TargetSelection),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -213,7 +212,7 @@ pub struct Tower {
     pub level: u32,
     pub cost: u32,
     pub stats: Vec<TowerStats>,
-    pub meta: TowerMeta,
+    pub meta: Option<Vec<TowerMeta>>,
     pub position: Position,
     pub last_attack: f32,
     pub on_action:
@@ -229,7 +228,7 @@ impl Tower {
         cost: u32,
         position: Position,
         stats: Vec<TowerStats>,
-        meta: TowerMeta,
+        meta: Option<Vec<TowerMeta>>,
         on_action: Option<
             Rc<dyn Fn(Arc<MediatorService>, &mut Game, &mut Tower) -> Result<(), String>>,
         >,
@@ -325,50 +324,82 @@ impl Tower {
 
         // Sélectionner les cibles primaires en fonction de la stratégie
         let current_wave = game.current_wave.as_mut().unwrap();
-        match self.meta.target_selection {
-            TargetSelection::Nearest => {
+        if let Some(meta) = &self.meta {
+            if let Some(target_selection) = meta
+                .iter()
+                .find(|metadata| **metadata == TowerMeta::TargetSelection(TargetSelection::Nearest))
+            {
                 if let Some(target) = self.find_nearest_target(current_wave) {
                     primary_targets.push(target);
                 }
             }
-            TargetSelection::All => {
-                // Cibler tous les monstres dans la portée
+
+            if let Some(target_selection) = meta
+                .iter()
+                .find(|metadata| **metadata == TowerMeta::TargetSelection(TargetSelection::All))
+            {
                 for (idx, monster) in current_wave.monsters.iter().enumerate() {
                     if monster.active && self.is_in_range(monster) {
                         primary_targets.push(idx);
                     }
                 }
             }
-            _ => {
-                // Par défaut, prendre le premier monstre dans la portée
-                for (idx, monster) in current_wave.monsters.iter().enumerate() {
-                    if monster.active && self.is_in_range(monster) {
-                        primary_targets.push(idx);
-                        break;
-                    }
+
+            if let Some(target_selection) = meta.iter().find(|metadata| {
+                **metadata == TowerMeta::TargetSelection(TargetSelection::Strongest)
+            }) {
+                let strongest_monster = current_wave
+                    .monsters
+                    .iter()
+                    .max_by_key(|m| m.hp as i32)
+                    .map(|m| m.id);
+
+                if let Some(strongest_monster) = strongest_monster {
+                    let index = current_wave
+                        .monsters
+                        .iter()
+                        .position(|m| m.id == strongest_monster)
+                        .unwrap();
+
+                    primary_targets.push(index);
                 }
             }
-        }
 
-        // Traiter chaque cible primaire et les cibles AOE si applicable
-        let damage = self
-            .stats
-            .iter()
-            .find(|stat| stat.stat_type == TowerStatType::Damage);
+            let damage = self
+                .stats
+                .iter()
+                .find(|stat| stat.stat_type == TowerStatType::Damage);
 
-        if let Some(damage) = damage {
-            for target_idx in primary_targets {
-                if let Some(target_monster) = current_wave.monsters.get(target_idx) {
-                    if !target_monster.active {
-                        continue;
-                    }
+            let behavior = meta.iter().find_map(|metadata| {
+                if let TowerMeta::Behavior(behavior) = metadata {
+                    Some(behavior)
+                } else {
+                    None
+                }
+            });
 
+            if let Some(damage) = damage {
+                for target_idx in primary_targets {
                     if let Some(monster) = current_wave.monsters.get_mut(target_idx) {
-                        let actual_damage = self.meta.behavior.apply(monster, damage.base);
-                        monster.hp -= actual_damage;
-                    }
+                        if !monster.active {
+                            continue;
+                        }
 
-                    if let Some(aoe) = &self.meta.aoe {
+                        if let Some(behavior) = behavior {
+                            let actual_damage = behavior.apply(monster, damage.base);
+                            monster.hp -= actual_damage;
+                        }
+                    };
+
+                    let aoe = meta.iter().find_map(|metadata| {
+                        if let TowerMeta::AoeEffect(aoe) = metadata {
+                            Some(aoe)
+                        } else {
+                            None
+                        }
+                    });
+
+                    if let Some(aoe) = aoe {
                         let target_pos = current_wave.monsters[target_idx].position;
                         for (idx, monster) in current_wave.monsters.iter_mut().enumerate() {
                             if idx == target_idx || !monster.active {
@@ -379,9 +410,9 @@ impl Tower {
                             if let TowerAoe::Radius(radius, damage_multiplier) = aoe {
                                 if distance <= *radius as f32 {
                                     let aoe_damage = damage.base * damage_multiplier; // 50% des dégâts pour l'AOE
-                                    let actual_aoe_damage =
-                                        self.meta.behavior.apply(monster, aoe_damage);
-                                    monster.hp -= actual_aoe_damage;
+                                    monster.hp -= behavior
+                                        .expect("You should define a behavior when you use AOE")
+                                        .apply(monster, aoe_damage);
                                 }
                             }
                         }

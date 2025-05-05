@@ -27,12 +27,7 @@ impl SentinelTower {
                 level: 1,
                 upgrade: None,
             }],
-            TowerMeta {
-                aoe: None,
-                behavior: TowerBehavior::Basic,
-                target_selection: TargetSelection::Nearest,
-                tower_type: TowerKind::Fire,
-            },
+            None,
             Some(Rc::new(|mediator, game, tower| {
                 let mut monsters_detected = false;
 
