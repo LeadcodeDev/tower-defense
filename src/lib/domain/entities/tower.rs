@@ -1,8 +1,7 @@
 use ratatui::style::Color;
 use uuid::Uuid;
 
-use crate::domain::mediator::Mediator;
-use crate::infrastructure::ui::notifications::NotifierAdapter;
+use crate::domain::mediator::MediatorService;
 
 use super::game::Game;
 use super::{
@@ -216,9 +215,8 @@ pub struct Tower {
     pub meta: TowerMeta,
     pub position: Position,
     pub last_attack: f32,
-    pub on_action: Option<
-        Rc<dyn Fn(Arc<Mediator<NotifierAdapter>>, &mut Game, &mut Tower) -> Result<(), String>>,
-    >,
+    pub on_action:
+        Option<Rc<dyn Fn(Arc<MediatorService>, &mut Game, &mut Tower) -> Result<(), String>>>,
     pub highlight: Option<Color>,
 }
 
@@ -232,7 +230,7 @@ impl Tower {
         stats: Vec<TowerStats>,
         meta: TowerMeta,
         on_action: Option<
-            Rc<dyn Fn(Arc<Mediator<NotifierAdapter>>, &mut Game, &mut Tower) -> Result<(), String>>,
+            Rc<dyn Fn(Arc<MediatorService>, &mut Game, &mut Tower) -> Result<(), String>>,
         >,
     ) -> Self {
         Self {
@@ -309,7 +307,7 @@ impl Tower {
 
     pub fn shoot(
         &mut self,
-        mediator: Arc<Mediator<NotifierAdapter>>,
+        mediator: Arc<MediatorService>,
         game: &mut Game,
         current_time: f32,
     ) -> Vec<String> {

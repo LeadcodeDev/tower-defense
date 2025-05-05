@@ -1,4 +1,6 @@
-use super::ports::notifier::Notifier;
+use super::{ports::notifier::Notifier, services::notifications::NotifierAdapter};
+
+pub type MediatorService = Mediator<NotifierAdapter>;
 
 pub struct Mediator<T: Notifier> {
     pub notifier: T,

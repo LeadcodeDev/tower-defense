@@ -6,10 +6,7 @@ use std::{
 
 use rand::{Rng, rng};
 
-use crate::{
-    domain::{mediator::Mediator, ports::notifier::Notifier},
-    infrastructure::ui::notifications::NotifierAdapter,
-};
+use crate::domain::{mediator::MediatorService, ports::notifier::Notifier};
 
 use super::{
     map::Map,
@@ -28,7 +25,7 @@ pub struct GameLog {
 }
 
 pub struct Game {
-    pub mediator: Arc<Mediator<NotifierAdapter>>,
+    pub mediator: Arc<MediatorService>,
     pub current_map: Option<Map>,
     pub towers: Vec<Tower>,
     pub waves: Option<VecDeque<Wave>>,
@@ -45,7 +42,7 @@ pub struct Game {
 
 impl Game {
     pub fn new(
-        mediator: Arc<Mediator<NotifierAdapter>>,
+        mediator: Arc<MediatorService>,
         towers: Vec<Tower>,
         player_life: i32,
         wave_multiplier: f32,

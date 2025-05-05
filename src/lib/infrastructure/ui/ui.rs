@@ -207,7 +207,9 @@ fn render_map(app: &App, frame: &mut Frame, area: Rect) {
                 } else {
                     map_chars[cursor_y as usize][cursor_x as usize] = "  ";
                     map_styles[cursor_y as usize][cursor_x as usize] =
-                        if is_cursor_on_tower(app, cursor_x, cursor_y) {
+                        if is_cursor_on_tower(app, cursor_x, cursor_y)
+                            || is_cursor_on_waypoint(app, cursor_x, cursor_y)
+                        {
                             Style::default().bg(Color::Red).add_modifier(Modifier::BOLD)
                         } else {
                             Style::default()
@@ -324,6 +326,65 @@ fn is_cursor_on_tower(app: &App, cursor_x: i32, cursor_y: i32) -> bool {
         .any(|tower| tower.position.x == cursor_x && tower.position.y == cursor_y);
 
     cursor_on_tower
+}
+
+fn is_cursor_on_waypoint(app: &App, cursor_x: i32, cursor_y: i32) -> bool {
+    if let Some(map) = &app.game.current_map {
+        // Vérifier si le curseur est sur un waypoint du chemin
+        if map
+            .waypoints
+            .iter()
+            .any(|waypoint| waypoint.x == cursor_x && waypoint.y == cursor_y)
+        {
+            return true;
+        }
+
+        if map.waypoints.len() > 1 {
+            for i in 0..map.waypoints.len() - 1 {
+                let start = map.waypoints[i];
+                let end = map.waypoints[i + 1];
+
+                if start.y == end.y && start.y == cursor_y {
+                    let min_x = start.x.min(end.x);
+                    let max_x = start.x.max(end.x);
+                    if cursor_x >= min_x && cursor_x <= max_x {
+                        return true;
+                    }
+                }
+
+                if start.x == end.x && start.x == cursor_x {
+                    let min_y = start.y.min(end.y);
+                    let max_y = start.y.max(end.y);
+                    if cursor_y >= min_y && cursor_y <= max_y {
+                        return true;
+                    }
+                }
+
+                if start.x != end.x && start.y != end.y {
+                    let dx = (end.x - start.x).signum();
+                    let dy = (end.y - start.y).signum();
+
+                    let mut x = start.x;
+                    let mut y = start.y;
+
+                    while x != end.x {
+                        x += dx;
+                        if x == cursor_x && y == cursor_y {
+                            return true;
+                        }
+                    }
+
+                    while y != end.y {
+                        y += dy;
+                        if x == cursor_x && y == cursor_y {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
 }
 
 fn render_actions(app: &App, frame: &mut Frame, area: Rect) {

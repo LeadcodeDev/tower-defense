@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
 use rust_tower::{
-    application::engine::towers::{
-        fire_tower::FireTower, mine_tower::MineTower, sentinel_tower::SentinelTower,
+    application::engine::{
+        maps::{cave::CaveMap, desert::DesertMap, forest::ForestMap},
+        towers::{fire_tower::FireTower, mine_tower::MineTower, sentinel_tower::SentinelTower},
     },
-    domain::{entities::position::Position, mediator::Mediator},
-    infrastructure::ui::{app::App, notifications::NotifierAdapter, tui::Tui},
+    domain::{
+        entities::position::Position, mediator::Mediator, services::notifications::NotifierAdapter,
+    },
+    infrastructure::ui::{app::App, tui::Tui},
 };
 
 fn main() -> color_eyre::Result<()> {
@@ -21,6 +24,7 @@ fn main() -> color_eyre::Result<()> {
             SentinelTower::positionned(Position::new(0, 0)),
             MineTower::positionned(Position::new(0, 0)),
         ],
+        vec![ForestMap::new(), DesertMap::new(), CaveMap::new()],
     );
 
     let mut tui = Tui::new()?;

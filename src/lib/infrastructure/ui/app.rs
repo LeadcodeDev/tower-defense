@@ -3,19 +3,15 @@ use std::sync::Arc;
 use crate::application::engine::maps::cave::CaveMap;
 use crate::application::engine::maps::desert::DesertMap;
 use crate::application::engine::maps::forest::ForestMap;
-use crate::application::engine::towers::fire_tower::FireTower;
-use crate::application::engine::towers::mine_tower::MineTower;
-use crate::application::engine::towers::sentinel_tower::SentinelTower;
 use crate::domain::entities::map::Map;
 use crate::domain::entities::tower::TowerKind;
 use crate::domain::entities::tower::{Tower, TowerStatType};
 use crate::domain::entities::{game::Game, position::Position};
-use crate::domain::mediator::Mediator;
+use crate::domain::mediator::MediatorService;
 use color_eyre::Result;
 use crossterm::event::KeyCode;
 use rand::{rng, seq::IndexedRandom};
 
-use super::notifications::NotifierAdapter;
 use super::{
     events::{
         event::{Event, EventConfig, Events},
@@ -110,7 +106,7 @@ impl UpgradeMenu {
 
 /// Représente l'état global de l'application TUI
 pub struct App {
-    pub mediator: Arc<Mediator<NotifierAdapter>>,
+    pub mediator: Arc<MediatorService>,
     pub running: bool,
     pub game: Game,
     pub current_view: View,
@@ -144,7 +140,7 @@ pub enum View {
 
 impl App {
     /// Crée une nouvelle instance de l'application avec le jeu fourni
-    pub fn new(mediator: Arc<Mediator<NotifierAdapter>>, towers: Vec<Tower>) -> Self {
+    pub fn new(mediator: Arc<MediatorService>, towers: Vec<Tower>, maps: Vec<Map>) -> Self {
         // Actions par défaut
         let actions = vec![
             GameAction::BuildTower,
@@ -166,7 +162,7 @@ impl App {
             upgrade_menu: None,
             tower_selection_on_map: false,
             selected_tower_index: None,
-            available_maps: vec![ForestMap::new(), DesertMap::new(), CaveMap::new()],
+            available_maps: maps,
             selected_map: None,
         }
     }
