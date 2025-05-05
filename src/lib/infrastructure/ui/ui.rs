@@ -3,13 +3,10 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
-use crate::{
-    domain::entities::tower::TowerUpgradeElementUnit,
-    infrastructure::ui::app::{App, GameAction, TowerType, UiMode, View},
-};
+use crate::infrastructure::ui::app::{App, GameAction, UiMode, View};
 
 /// Gère le rendu de l'interface utilisateur
 pub fn render(app: &App, frame: &mut Frame) {

@@ -4,9 +4,7 @@ use ratatui::style::Color;
 
 use crate::domain::entities::{
     position::Position,
-    tower::{
-        Tower, TowerMeta, TowerStatType, TowerStatUpgrade, TowerStats, TowerUpgradeElementUnit,
-    },
+    tower::{Tower, TowerStatType, TowerStatUpgrade, TowerStats, TowerUpgradeElementUnit},
 };
 
 pub struct MineTower;

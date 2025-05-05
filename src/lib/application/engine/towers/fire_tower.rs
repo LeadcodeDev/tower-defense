@@ -1,13 +1,9 @@
-use std::rc::Rc;
-
-use uuid::Uuid;
-
 use crate::domain::entities::{
     behavior::TowerBehavior,
     position::Position,
     tower::{
-        TargetSelection, Tower, TowerAoe, TowerKind, TowerMeta, TowerStatType, TowerStatUpgrade,
-        TowerStats, TowerUpgradeElementUnit,
+        TargetSelection, Tower, TowerAoe, TowerMeta, TowerStatType, TowerStatUpgrade, TowerStats,
+        TowerUpgradeElementUnit,
     },
 };
 

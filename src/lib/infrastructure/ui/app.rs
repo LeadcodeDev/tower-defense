@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use crate::application::engine::maps::cave::CaveMap;
-use crate::application::engine::maps::desert::DesertMap;
 use crate::application::engine::maps::forest::ForestMap;
 use crate::domain::entities::map::Map;
 use crate::domain::entities::tower::TowerKind;
@@ -396,7 +394,7 @@ impl App {
                                 );
                             }
                         } else if let Some(tower) = self.selected_tower.clone() {
-                            self.add_tower(tower, self.cursor_position);
+                            self.add_tower(tower, self.cursor_position).unwrap();
 
                             self.ui_mode = UiMode::Normal;
                             self.selected_tower = None;

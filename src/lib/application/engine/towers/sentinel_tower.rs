@@ -2,9 +2,8 @@ use std::rc::Rc;
 
 use crate::domain::{
     entities::{
-        behavior::TowerBehavior,
         position::Position,
-        tower::{TargetSelection, Tower, TowerKind, TowerMeta, TowerStatType, TowerStats},
+        tower::{Tower, TowerStatType, TowerStats},
     },
     ports::notifier::Notifier,
 };

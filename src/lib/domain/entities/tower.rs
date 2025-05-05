@@ -345,7 +345,7 @@ impl Tower {
                 }
             }
 
-            if let Some(target_selection) = meta.iter().find(|metadata| {
+            if let Some(_) = meta.iter().find(|metadata| {
                 **metadata == TowerMeta::TargetSelection(TargetSelection::Strongest)
             }) {
                 let strongest_monster = current_wave

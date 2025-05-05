@@ -236,7 +236,7 @@ impl Game {
             }
 
             let mut rem = Vec::new();
-            let mut wave_is_empty = false;
+            let wave_is_empty = wave.monsters.is_empty();
 
             if let Some(map) = &self.current_map {
                 for monster in wave.monsters.drain(..) {
@@ -271,7 +271,6 @@ impl Game {
             }
 
             wave.monsters = rem;
-            wave_is_empty = wave.monsters.is_empty();
 
             for log in logs_to_add {
                 self.add_log(log);
