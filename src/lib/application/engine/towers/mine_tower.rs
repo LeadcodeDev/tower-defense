@@ -1,10 +1,12 @@
-use std::rc::Rc;
+use std::{rc::Rc, vec};
 
 use ratatui::style::Color;
 
 use crate::domain::entities::{
     position::Position,
-    tower::{Tower, TowerStatType, TowerStatUpgrade, TowerStats, TowerUpgradeElementUnit},
+    tower::{
+        Tower, TowerMeta, TowerStatType, TowerStatUpgrade, TowerStats, TowerUpgradeElementUnit,
+    },
 };
 
 pub struct MineTower;
@@ -17,19 +19,34 @@ impl MineTower {
             1,
             45,
             position,
-            vec![TowerStats {
-                stat_type: TowerStatType::Money,
-                label: "Money".to_string(),
-                icon: "💰".to_string(),
-                base: 10.0,
-                level: 1,
-                upgrade: Some(TowerStatUpgrade {
-                    price_multiplier: 1.5,
-                    value_multiplier: 1.2,
-                    value_multiplier_unit: TowerUpgradeElementUnit::Unit,
-                    max_level: 10,
-                }),
-            }],
+            vec![
+                TowerStats {
+                    stat_type: TowerStatType::Money,
+                    label: "Money".to_string(),
+                    icon: "💰".to_string(),
+                    base: 10.0,
+                    level: 1,
+                    upgrade: Some(TowerStatUpgrade {
+                        price_multiplier: 1.5,
+                        value_multiplier: 1.2,
+                        value_multiplier_unit: TowerUpgradeElementUnit::Unit,
+                        max_level: 10,
+                    }),
+                },
+                TowerStats {
+                    stat_type: TowerStatType::AttackSpeed,
+                    label: "Generation speed".to_string(),
+                    icon: "🔥".to_string(),
+                    base: 0.5,
+                    level: 1,
+                    upgrade: Some(TowerStatUpgrade {
+                        price_multiplier: 1.8,
+                        value_multiplier: 0.5,
+                        value_multiplier_unit: TowerUpgradeElementUnit::Unit,
+                        max_level: 10,
+                    }),
+                },
+            ],
             None,
             Some(Rc::new(|_, game, tower| {
                 tower.highlight = if tower.highlight.is_some() {

@@ -258,7 +258,7 @@ impl Tower {
             let time_since_last_attack = current_time - self.last_attack;
             time_since_last_attack >= 1.0 / attack_speed.base
         } else {
-            true
+            false
         }
     }
 
@@ -325,7 +325,7 @@ impl Tower {
         // Sélectionner les cibles primaires en fonction de la stratégie
         let current_wave = game.current_wave.as_mut().unwrap();
         if let Some(meta) = &self.meta {
-            if let Some(target_selection) = meta
+            if let Some(_) = meta
                 .iter()
                 .find(|metadata| **metadata == TowerMeta::TargetSelection(TargetSelection::Nearest))
             {
@@ -334,7 +334,7 @@ impl Tower {
                 }
             }
 
-            if let Some(target_selection) = meta
+            if let Some(_) = meta
                 .iter()
                 .find(|metadata| **metadata == TowerMeta::TargetSelection(TargetSelection::All))
             {

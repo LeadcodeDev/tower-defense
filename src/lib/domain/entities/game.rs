@@ -200,14 +200,11 @@ impl Game {
 
         let mut towers = Vec::new();
         for i in 0..self.towers.len() {
-            if self.towers[i].can_shoot(start_time) {
-                towers.push(self.towers[i].clone());
-            }
+            towers.push(self.towers[i].clone());
         }
 
         for i in 0..sub_frames {
             let sub_frame_time = start_time + sub_delta * i as f32;
-
             for tower in &mut towers {
                 if tower.can_shoot(sub_frame_time) {
                     let tower_logs = tower.shoot(self.mediator.clone(), self, sub_frame_time);

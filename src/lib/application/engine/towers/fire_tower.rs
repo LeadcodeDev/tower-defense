@@ -48,6 +48,19 @@ impl FireTower {
                         max_level: 10,
                     }),
                 },
+                TowerStats {
+                    stat_type: TowerStatType::AttackSpeed,
+                    label: "Attack Speed".to_string(),
+                    icon: "🔥".to_string(),
+                    base: 0.5,
+                    level: 1,
+                    upgrade: Some(TowerStatUpgrade {
+                        price_multiplier: 1.8,
+                        value_multiplier: 0.5,
+                        value_multiplier_unit: TowerUpgradeElementUnit::Unit,
+                        max_level: 10,
+                    }),
+                },
             ],
             Some(vec![
                 TowerMeta::AoeEffect(TowerAoe::Radius(10, 50.0)),
