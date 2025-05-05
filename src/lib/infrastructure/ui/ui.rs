@@ -3,10 +3,12 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Widget},
 };
 
 use crate::infrastructure::ui::app::{App, GameAction, UiMode, View};
+
+use super::widgets::popup::Popup;
 
 /// Gère le rendu de l'interface utilisateur
 pub fn render(app: &App, frame: &mut Frame) {
@@ -373,13 +375,13 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
             // Afficher les actions principales
             for (i, action) in app.available_actions.iter().enumerate() {
                 let text = match action {
-                    GameAction::BuildTower => "🧱 Construire une tour",
-                    GameAction::RemoveTower => "🗑️ Supprimer une tour",
-                    GameAction::UpgradeTower => "🔧 Améliorer une tour existante",
+                    GameAction::BuildTower => "🧱 Build tower",
+                    GameAction::RemoveTower => "🗑️ Remove tower",
+                    GameAction::UpgradeTower => "🔧 Upgrade existing tower",
                 };
 
                 // Mettre en surbrillance l'action sélectionnée
-                let style = if i == app.selected_index {
+                let style = if i == app.selected_index && app.current_view != View::Pause {
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD)
@@ -391,7 +393,7 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
             }
 
             let actions_list = List::new(action_items)
-                .block(Block::default().borders(Borders::ALL).title("Actions"))
+                .block(Block::default().borders(Borders::ALL).title(" Actions "))
                 .style(Style::default().fg(Color::White));
 
             frame.render_widget(actions_list, area);
@@ -414,7 +416,7 @@ fn render_actions(app: &App, frame: &mut Frame, area: Rect) {
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
-                        .title("Types de tours"),
+                        .title(" Types of towers "),
                 )
                 .style(Style::default().fg(Color::White));
 
@@ -699,11 +701,14 @@ fn render_pause_menu(app: &App, frame: &mut Frame) {
     let mut all_lines = vec![title, Line::from("")];
     all_lines.extend(menu_items);
 
-    let menu = Paragraph::new(all_lines)
-        .block(Block::default().borders(Borders::ALL).title("Pause"))
-        .style(Style::default().fg(Color::White));
+    let popup = Popup::default()
+        .content(all_lines)
+        .style(Style::new().white())
+        .title("Pause")
+        .title_style(Style::new().white().bold())
+        .floating(true);
 
-    frame.render_widget(menu, centered_rect(30, 20, frame.area()));
+    frame.render_widget(popup, frame.area());
 }
 
 /// Affiche l'écran de fin de jeu

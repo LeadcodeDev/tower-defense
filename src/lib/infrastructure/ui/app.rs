@@ -10,6 +10,7 @@ use color_eyre::Result;
 use crossterm::event::KeyCode;
 use rand::{rng, seq::IndexedRandom};
 
+use super::ui::render;
 use super::{
     events::{
         event::{Event, EventConfig, Events},
@@ -19,7 +20,6 @@ use super::{
         },
     },
     tui::Tui,
-    ui::render,
 };
 
 /// Actions disponibles dans le menu d'action du jeu
