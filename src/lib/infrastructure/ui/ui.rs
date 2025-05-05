@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
 };
@@ -50,32 +50,13 @@ fn render_game_view(app: &App, frame: &mut Frame) {
 
 /// Affiche l'en-tête avec des informations de base
 fn render_header(app: &App, frame: &mut Frame, area: Rect) {
-    let header = Paragraph::new(Line::from(vec![
-        Span::styled(
-            "Tower Defense",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(" | "),
-        Span::styled(
-            format!("Vie: {}", app.game.player_life),
-            Style::default().fg(Color::Green),
-        ),
-        Span::raw(" | "),
-        Span::styled(
-            format!("Vague: {}", app.game.wave_index),
-            Style::default().fg(Color::Cyan),
-        ),
-        Span::raw(" | "),
-        Span::styled(
-            format!("💰 Pièces: {}", app.game.money),
-            Style::default().fg(Color::Yellow),
-        ),
-    ]))
-    .block(Block::default().borders(Borders::ALL).title("Informations"));
+    let content = vec![
+        format!("❤️ Vie: {}", app.game.player_life).red().into(),
+        format!("😈 Wave: {}", app.game.wave_index).cyan().into(),
+        format!("💰 Money: {}", app.game.money).yellow().into(),
+    ];
 
-    frame.render_widget(header, area);
+    frame.render_widget(Paragraph::new(content).block(Block::bordered()), area);
 }
 
 /// Affiche la carte de jeu

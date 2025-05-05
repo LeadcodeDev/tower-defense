@@ -1,7 +1,5 @@
 use std::rc::Rc;
 
-use uuid::Uuid;
-
 use crate::domain::{
     entities::{
         behavior::TowerBehavior,
@@ -11,9 +9,7 @@ use crate::domain::{
     ports::notifier::Notifier,
 };
 
-pub struct SentinelTower {
-    pub detected_monsters: Vec<Uuid>,
-}
+pub struct SentinelTower;
 
 impl SentinelTower {
     pub fn positionned(position: Position) -> Tower {

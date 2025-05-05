@@ -40,6 +40,7 @@ pub enum TowerStatType {
     Range,
     Damage,
     AttackSpeed,
+    Money,
 }
 
 #[derive(Clone)]

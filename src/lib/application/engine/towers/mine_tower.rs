@@ -6,12 +6,13 @@ use uuid::Uuid;
 use crate::domain::entities::{
     behavior::TowerBehavior,
     position::Position,
-    tower::{TargetSelection, Tower, TowerKind, TowerMeta},
+    tower::{
+        TargetSelection, Tower, TowerKind, TowerMeta, TowerStatType, TowerStatUpgrade, TowerStats,
+        TowerUpgradeElementUnit,
+    },
 };
 
-pub struct MineTower {
-    pub detected_monsters: Vec<Uuid>,
-}
+pub struct MineTower;
 
 impl MineTower {
     pub fn positionned(position: Position) -> Tower {
@@ -21,7 +22,19 @@ impl MineTower {
             1,
             45,
             position,
-            vec![],
+            vec![TowerStats {
+                stat_type: TowerStatType::Money,
+                label: "Money".to_string(),
+                icon: "💰".to_string(),
+                base: 10.0,
+                level: 1,
+                upgrade: Some(TowerStatUpgrade {
+                    price_multiplier: 1.5,
+                    value_multiplier: 1.2,
+                    value_multiplier_unit: TowerUpgradeElementUnit::Unit,
+                    max_level: 10,
+                }),
+            }],
             TowerMeta {
                 aoe: None,
                 behavior: TowerBehavior::Basic,
@@ -35,7 +48,13 @@ impl MineTower {
                     Some(Color::Yellow)
                 };
 
-                game.money += 100;
+                let money = tower
+                    .stats
+                    .iter()
+                    .find(|s| s.stat_type == TowerStatType::Money)
+                    .unwrap();
+
+                game.money += money.base as u32;
                 Ok(())
             })),
         )
